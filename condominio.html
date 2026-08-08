@@ -208,14 +208,15 @@ async function importarPlanilha() {
     const telefone = mapeamento.telefone ? String(linha[mapeamento.telefone] || '').trim() : '';
 
     try {
-      // Encontra ou cria a unidade
-      let { data: unidade } = await sb.from('csd_unidades')
+      // Encontra ou cria a unidade (trata torre/bloco vazios como NULL de verdade)
+      let busca = sb.from('csd_unidades')
         .select('id')
         .eq('condominio_id', condominioId)
-        .eq('torre', torre || null)
-        .eq('bloco', bloco || null)
-        .eq('apto', apto)
-        .maybeSingle();
+        .eq('apto', apto);
+      busca = torre ? busca.eq('torre', torre) : busca.is('torre', null);
+      busca = bloco ? busca.eq('bloco', bloco) : busca.is('bloco', null);
+
+      let { data: unidade } = await busca.maybeSingle();
 
       if (!unidade) {
         const { data: novaUnidade, error: erroUnidade } = await sb.from('csd_unidades')
