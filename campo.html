@@ -123,34 +123,11 @@ async function extrairComIA() {
   const btn = document.getElementById('btnExtrair');
   setBtnLoading(btn, true);
 
-  const apiKey = localStorage.getItem('csd_anthropic_key') || prompt('Chave da API Anthropic (fica salva só neste navegador):');
-  if (apiKey) localStorage.setItem('csd_anthropic_key', apiKey);
-
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: fotoMediaType, data: fotoBase64 } },
-            { type: 'text', text: 'Esta é a foto de um medidor de gás. Extraia o número de série impresso (geralmente um código alfanumérico como B25L0018007D) e a leitura do mostrador (os números pretos seguidos dos números vermelhos, formando um valor em m³, ex: 00037,801). Responda APENAS em JSON, sem markdown, no formato: {"numero_serie": "...", "leitura_m3": "..."}. Se não conseguir ler algum dado com certeza, retorne string vazia para ele.' }
-          ]
-        }]
-      })
+    const { data: extraido, error } = await sb.functions.invoke('csd-ler-medidor', {
+      body: { imagem_base64: fotoBase64, media_type: fotoMediaType }
     });
-    const data = await resp.json();
-    const texto = data.content?.find(b => b.type === 'text')?.text || '{}';
-    const limpo = texto.replace(/```json|```/g, '').trim();
-    const extraido = JSON.parse(limpo);
+    if (error || extraido?.erro) throw error || new Error(extraido.erro);
 
     document.getElementById('numeroSerie').value = extraido.numero_serie || '';
     document.getElementById('leituraM3').value = extraido.leitura_m3 || '';
