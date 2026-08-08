@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=7">
+<link rel="stylesheet" href="assets/css/style.css?v=8">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -93,15 +93,21 @@
     <div id="etapaDocumento" style="display:none;">
       <h2>Foto do documento</h2>
       <p>Tire uma foto do seu RG ou CNH.</p>
-      <div class="photo-frame">
+      <div class="photo-frame" id="frameDoc">
         <div class="placeholder" id="placeholderDoc">
           <div style="font-size:32px; margin-bottom:8px;">🪪</div>
           <div>Toque para fotografar</div>
         </div>
+        <video id="videoDoc" playsinline autoplay muted style="display:none;"></video>
+        <div class="camera-guide doc" id="guiaDoc" style="display:none;">
+          <span class="dica">Encaixe o documento no quadro</span>
+        </div>
+        <button class="camera-capture-btn" id="btnCapturarDoc" style="display:none;" onclick="capturarFoto('Doc')"></button>
         <img id="previewDoc" style="display:none;">
       </div>
       <input type="file" id="inputDoc" accept="image/*" capture="environment" style="display:none;">
-      <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputDoc').click()" style="margin-bottom:16px;">Tirar foto do documento</button>
+      <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">Tirar foto do documento</button>
+      <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="irParaSelfie()" disabled>Continuar</button>
     </div>
 
@@ -109,15 +115,21 @@
     <div id="etapaSelfie" style="display:none;">
       <h2>Agora, uma selfie</h2>
       <p>Isso confirma que é você mesmo concluindo o cadastro.</p>
-      <div class="photo-frame">
+      <div class="photo-frame" id="frameSelfie">
         <div class="placeholder" id="placeholderSelfie">
           <div style="font-size:32px; margin-bottom:8px;">🙂</div>
           <div>Toque para tirar a selfie</div>
         </div>
+        <video id="videoSelfie" playsinline autoplay muted style="display:none;"></video>
+        <div class="camera-guide face" id="guiaSelfie" style="display:none;">
+          <span class="dica">Encaixe seu rosto no oval</span>
+        </div>
+        <button class="camera-capture-btn" id="btnCapturarSelfie" style="display:none;" onclick="capturarFoto('Selfie')"></button>
         <img id="previewSelfie" style="display:none;">
       </div>
       <input type="file" id="inputSelfie" accept="image/*" capture="user" style="display:none;">
-      <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputSelfie').click()" style="margin-bottom:16px;">Tirar selfie</button>
+      <button class="btn btn-secondary btn-block" id="btnAbrirCameraSelfie" onclick="abrirCamera('Selfie')" style="margin-bottom:10px;">Tirar selfie</button>
+      <button class="btn btn-ghost btn-block" id="btnRefazerSelfie" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Selfie')">Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnFinalizar" onclick="finalizar()" disabled>Concluir cadastro</button>
     </div>
 
@@ -133,7 +145,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=7"></script>
+<script src="assets/js/supabase-client.js?v=8"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -276,6 +288,61 @@ async function salvarConfirmacao() {
 document.getElementById('inputDoc').addEventListener('change', (e) => lerFoto(e, 'Doc'));
 document.getElementById('inputSelfie').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
 
+const streamsAtivos = {};
+
+async function abrirCamera(tipo) {
+  const facing = tipo === 'Doc' ? 'environment' : 'user';
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 960 } },
+      audio: false,
+    });
+    streamsAtivos[tipo] = stream;
+
+    const video = document.getElementById('video' + tipo);
+    video.srcObject = stream;
+    video.style.display = 'block';
+    document.getElementById('placeholder' + tipo).style.display = 'none';
+    document.getElementById('preview' + tipo).style.display = 'none';
+    document.getElementById('guia' + tipo).style.display = 'flex';
+    document.getElementById('btnCapturar' + tipo).style.display = 'block';
+    document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
+    document.getElementById('btnRefazer' + tipo).style.display = 'none';
+  } catch (err) {
+    // Permissão negada ou câmera indisponível: volta pro seletor nativo do sistema
+    document.getElementById('input' + tipo).click();
+  }
+}
+
+function pararCamera(tipo) {
+  if (streamsAtivos[tipo]) {
+    streamsAtivos[tipo].getTracks().forEach(t => t.stop());
+    streamsAtivos[tipo] = null;
+  }
+}
+
+function capturarFoto(tipo) {
+  const video = document.getElementById('video' + tipo);
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+  if (tipo === 'Doc') { docBase64 = dataUrl.split(',')[1]; docMediaType = 'image/jpeg'; }
+  else { selfieBase64 = dataUrl.split(',')[1]; selfieMediaType = 'image/jpeg'; }
+
+  pararCamera(tipo);
+  const img = document.getElementById('preview' + tipo);
+  img.src = dataUrl;
+  img.style.display = 'block';
+  document.getElementById('video' + tipo).style.display = 'none';
+  document.getElementById('guia' + tipo).style.display = 'none';
+  document.getElementById('btnCapturar' + tipo).style.display = 'none';
+  document.getElementById('btnRefazer' + tipo).style.display = 'block';
+  document.getElementById('btn' + (tipo === 'Doc' ? 'ContinuarDoc' : 'Finalizar')).disabled = false;
+}
+
 function lerFoto(e, tipo) {
   const file = e.target.files[0];
   if (!file) return;
@@ -288,12 +355,14 @@ function lerFoto(e, tipo) {
     document.getElementById('preview' + tipo).src = dataUrl;
     document.getElementById('preview' + tipo).style.display = 'block';
     document.getElementById('placeholder' + tipo).style.display = 'none';
+    document.getElementById('btnRefazer' + tipo).style.display = 'block';
+    document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
     document.getElementById('btn' + (tipo === 'Doc' ? 'ContinuarDoc' : 'Finalizar')).disabled = false;
   };
   reader.readAsDataURL(file);
 }
 
-function irParaSelfie() { mostrarEtapa('selfie', 4); }
+function irParaSelfie() { pararCamera('Doc'); mostrarEtapa('selfie', 4); }
 
 async function uploadFoto(base64, mediaType, prefixo) {
   const nomeArquivo = `${prefixo}/${moradorId}-${Date.now()}.jpg`;
@@ -306,6 +375,7 @@ async function uploadFoto(base64, mediaType, prefixo) {
 async function finalizar() {
   const btn = document.getElementById('btnFinalizar');
   setBtnLoading(btn, true);
+  pararCamera('Selfie');
   try {
     const [docUrl, selfieUrl] = await Promise.all([
       uploadFoto(docBase64, docMediaType, 'documentos'),

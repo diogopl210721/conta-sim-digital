@@ -314,6 +314,32 @@ input:focus, select:focus, textarea:focus {
 .photo-frame img, .photo-frame video { width: 100%; height: 100%; object-fit: cover; }
 .photo-frame .placeholder { color: rgba(255,255,255,0.6); text-align: center; padding: 20px; }
 
+/* Guia de enquadramento sobreposto ao vídeo ao vivo */
+.camera-guide {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.camera-guide::before {
+  content: '';
+  border: 3px dashed rgba(255,255,255,0.85);
+  box-shadow: 0 0 0 999px rgba(11,41,71,0.45);
+}
+.camera-guide.doc::before { width: 78%; aspect-ratio: 1.586; border-radius: 12px; }
+.camera-guide.face::before { width: 58%; aspect-ratio: 3/4; border-radius: 50%; }
+.camera-guide .dica {
+  position: absolute; bottom: 12px; left: 0; right: 0;
+  text-align: center; color: #fff; font-size: 13px; font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+.camera-capture-btn {
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  width: 62px; height: 62px; border-radius: 50%;
+  background: #fff; border: 4px solid rgba(255,255,255,0.5);
+  cursor: pointer;
+}
+.camera-capture-btn:active { transform: translateX(-50%) scale(0.92); }
+
 table.data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 table.data-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); padding: 10px 8px; border-bottom: 2px solid var(--border); }
 table.data-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
