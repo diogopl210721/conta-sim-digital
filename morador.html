@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=8">
+<link rel="stylesheet" href="assets/css/style.css?v=9">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -36,6 +36,13 @@
     <div id="etapaErro" style="display:none;" class="center-text">
       <h2>Link inválido</h2>
       <p id="mensagemErro">Este link não é mais válido. Peça um novo link ao consultor responsável.</p>
+    </div>
+
+    <!-- ETAPA: já concluído -->
+    <div id="etapaJaConcluido" style="display:none;" class="center-text">
+      <div style="font-size:48px; margin-bottom:12px;">✅</div>
+      <h2>Cadastro já concluído</h2>
+      <p>Essa unidade já tem um cadastro validado. Se algo estiver errado, entre em contato com o consultor responsável pelo condomínio.</p>
     </div>
 
     <!-- ETAPA: localizar unidade (link geral do condomínio) -->
@@ -145,7 +152,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=8"></script>
+<script src="assets/js/supabase-client.js?v=9"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -157,7 +164,7 @@ let moradorId = null;
 let docBase64 = null, docMediaType = null;
 let selfieBase64 = null, selfieMediaType = null;
 
-const ETAPAS = ['carregando','localizar','cpf','cadastroZero','confirmar','documento','selfie','concluido'];
+const ETAPAS = ['carregando','localizar','cpf','cadastroZero','confirmar','documento','selfie','concluido','jaConcluido'];
 function mostrarEtapa(nome, passoVisual) {
   ETAPAS.forEach(e => document.getElementById('etapa' + e.charAt(0).toUpperCase() + e.slice(1)).style.display = (e === nome ? 'block' : 'none'));
   if (passoVisual) atualizarDial(passoVisual);
@@ -185,7 +192,11 @@ async function iniciar() {
 
   const { data, error } = await sb.rpc('csd_rpc_resolver_link', { p_token: token });
   if (error || data?.erro) {
-    mostrarErro(data?.erro === 'link_expirado' ? 'Este link expirou. Peça um novo ao consultor.' : 'Este link não é válido.');
+    const mensagens = {
+      link_expirado: 'Este link expirou. Peça um novo ao consultor.',
+      link_ja_utilizado: 'Este link já foi utilizado. Se precisar refazer o cadastro, peça um novo link ao consultor.',
+    };
+    mostrarErro(mensagens[data?.erro] || 'Este link não é válido.');
     return;
   }
 
@@ -194,6 +205,7 @@ async function iniciar() {
   if (data.tipo === 'unidade') {
     unidadeId = data.unidade_id;
     identificacaoUnidade = [data.torre, data.bloco, data.apto].filter(Boolean).join(' / ');
+    if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
     mostrarEtapa('cpf', 1);
   } else {
     document.getElementById('nomeCondominioLocalizar').textContent = data.condominio_nome;
@@ -222,6 +234,7 @@ async function confirmarUnidade() {
   if (error) { toast('Erro ao localizar unidade.', 'error'); return; }
   unidadeId = data.unidade_id;
   identificacaoUnidade = [torre, bloco, apto].filter(Boolean).join(' / ');
+  if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
   mostrarEtapa('cpf', 1);
 }
 
@@ -383,7 +396,7 @@ async function finalizar() {
     ]);
 
     const { error } = await sb.rpc('csd_rpc_finalizar_validacao', {
-      p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null
+      p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null, p_token: token
     });
     if (error) throw error;
 
