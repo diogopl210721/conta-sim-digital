@@ -23,6 +23,8 @@
       <div class="label" id="dialLabel">1/5</div>
     </div>
 
+    <div id="faixaUnidade" class="center-text" style="display:none; font-weight:700; color: var(--navy-900); background: var(--flame-light); border-radius: 999px; padding: 8px 16px; margin: 0 auto 20px; width: fit-content; font-size: 14px;"></div>
+
     <!-- ETAPA: carregando -->
     <div id="etapaCarregando" class="center-text">
       <p>Carregando...</p>
@@ -133,6 +135,7 @@ const token = params.get('token');
 
 let condominioId = null;
 let unidadeId = null;
+let identificacaoUnidade = null;
 let moradorId = null;
 let docBase64 = null, docMediaType = null;
 let selfieBase64 = null, selfieMediaType = null;
@@ -141,6 +144,15 @@ const ETAPAS = ['carregando','localizar','cpf','cadastroZero','confirmar','docum
 function mostrarEtapa(nome, passoVisual) {
   ETAPAS.forEach(e => document.getElementById('etapa' + e.charAt(0).toUpperCase() + e.slice(1)).style.display = (e === nome ? 'block' : 'none'));
   if (passoVisual) atualizarDial(passoVisual);
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  atualizarFaixaUnidade();
+}
+
+function atualizarFaixaUnidade() {
+  const faixa = document.getElementById('faixaUnidade');
+  if (!faixa) return;
+  faixa.textContent = identificacaoUnidade ? `Unidade: ${identificacaoUnidade}` : '';
+  faixa.style.display = identificacaoUnidade ? 'block' : 'none';
 }
 
 function atualizarDial(passo) {
@@ -164,6 +176,7 @@ async function iniciar() {
 
   if (data.tipo === 'unidade') {
     unidadeId = data.unidade_id;
+    identificacaoUnidade = [data.torre, data.bloco, data.apto].filter(Boolean).join(' / ');
     mostrarEtapa('cpf', 1);
   } else {
     document.getElementById('nomeCondominioLocalizar').textContent = data.condominio_nome;
@@ -191,6 +204,7 @@ async function confirmarUnidade() {
   });
   if (error) { toast('Erro ao localizar unidade.', 'error'); return; }
   unidadeId = data.unidade_id;
+  identificacaoUnidade = [torre, bloco, apto].filter(Boolean).join(' / ');
   mostrarEtapa('cpf', 1);
 }
 
