@@ -77,6 +77,32 @@
   </div>
 </div>
 
+<!-- Modal editar condomínio -->
+<div id="modalEditarCondominio" style="display:none; position:fixed; inset:0; background:rgba(11,41,71,0.6); align-items:flex-end; justify-content:center; z-index:50;">
+  <div class="card" style="width:100%; max-width:480px; border-radius:24px 24px 0 0; margin:0;">
+    <h3>Editar condomínio</h3>
+    <div class="field">
+      <label for="editNomeCondominio">Nome do condomínio</label>
+      <input type="text" id="editNomeCondominio" required>
+    </div>
+    <div class="field">
+      <label for="editEnderecoCondominio">Endereço</label>
+      <input type="text" id="editEnderecoCondominio">
+    </div>
+    <div class="field">
+      <label for="editEstruturaCondominio">Estrutura do edifício</label>
+      <select id="editEstruturaCondominio">
+        <option value="apto_simples">Só apartamentos (sem torre/bloco)</option>
+        <option value="torre_bloco_apto">Tem torre e/ou bloco</option>
+      </select>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:8px;">
+      <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditarCondominio').style.display='none'">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btnSalvarEdicaoCondominio" onclick="salvarEdicaoCondominio()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/supabase-client.js"></script>
 <script>
 let perfilAtual = null;
@@ -121,19 +147,64 @@ async function carregarCondominios() {
   for (const c of data) {
     const card = document.createElement('div');
     card.className = 'card';
-    card.style.cursor = 'pointer';
-    card.onclick = () => window.location.href = 'condominio.html?id=' + c.id;
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;" class="area-clicavel">
         <div>
           <h3 style="margin-bottom:4px;">${escapeHtml(c.nome)}</h3>
           <p class="muted" style="margin:0; font-size:14px;">${escapeHtml(c.endereco || 'Endereço não informado')}</p>
         </div>
         <span class="badge badge-neutral">${c.estrutura === 'torre_bloco_apto' ? 'Torre/Bloco' : 'Apto'}</span>
       </div>
+      <div style="display:flex; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+        <button class="btn btn-ghost btn-sm" data-acao="editar">Editar</button>
+        <button class="btn btn-ghost btn-sm" data-acao="excluir" style="color:var(--danger);">Excluir</button>
+      </div>
     `;
+    card.querySelector('.area-clicavel').onclick = () => window.location.href = 'condominio.html?id=' + c.id;
+    card.querySelector('[data-acao="editar"]').onclick = () => abrirEdicaoCondominio(c);
+    card.querySelector('[data-acao="excluir"]').onclick = () => excluirCondominio(c.id, c.nome);
     lista.appendChild(card);
   }
+}
+
+let condominioEmEdicao = null;
+
+function abrirEdicaoCondominio(c) {
+  condominioEmEdicao = c;
+  document.getElementById('editNomeCondominio').value = c.nome || '';
+  document.getElementById('editEnderecoCondominio').value = c.endereco || '';
+  document.getElementById('editEstruturaCondominio').value = c.estrutura;
+  document.getElementById('modalEditarCondominio').style.display = 'flex';
+}
+
+async function salvarEdicaoCondominio() {
+  const btn = document.getElementById('btnSalvarEdicaoCondominio');
+  setBtnLoading(btn, true);
+
+  const nome = document.getElementById('editNomeCondominio').value.trim();
+  const endereco = document.getElementById('editEnderecoCondominio').value.trim();
+  const estrutura = document.getElementById('editEstruturaCondominio').value;
+
+  const { error } = await sb.from('csd_condominios')
+    .update({ nome, endereco, estrutura })
+    .eq('id', condominioEmEdicao.id);
+
+  setBtnLoading(btn, false, 'Salvar');
+
+  if (error) { toast('Erro ao salvar alterações.', 'error'); return; }
+  toast('Condomínio atualizado!', 'success');
+  document.getElementById('modalEditarCondominio').style.display = 'none';
+  await carregarCondominios();
+}
+
+async function excluirCondominio(id, nome) {
+  if (!confirm(`Excluir o condomínio "${nome}"? Isso remove TODAS as unidades, moradores, medidores e validações vinculados. Essa ação não pode ser desfeita.`)) return;
+  if (!confirm(`Confirme mais uma vez: excluir "${nome}" e tudo dentro dele?`)) return;
+
+  const { error } = await sb.from('csd_condominios').delete().eq('id', id);
+  if (error) { toast('Erro ao excluir.', 'error'); return; }
+  toast('Condomínio excluído.', 'success');
+  await carregarCondominios();
 }
 
 function escapeHtml(str) {
