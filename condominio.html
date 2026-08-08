@@ -67,6 +67,28 @@
   </div>
 </div>
 
+<!-- Modal editar unidade -->
+<div id="modalEditar" style="display:none; position:fixed; inset:0; background:rgba(11,41,71,0.6); align-items:flex-end; justify-content:center; z-index:50;">
+  <div class="card" style="width:100%; max-width:480px; border-radius:24px 24px 0 0; margin:0; max-height:90vh; overflow-y:auto;">
+    <h3>Editar unidade</h3>
+    <div style="display:flex; gap:10px;">
+      <div class="field" style="flex:1;"><label>Torre</label><input type="text" id="editTorre"></div>
+      <div class="field" style="flex:1;"><label>Bloco</label><input type="text" id="editBloco"></div>
+    </div>
+    <div class="field"><label>Apto *</label><input type="text" id="editApto"></div>
+    <div class="divider"></div>
+    <h3 style="font-size:16px;">Morador</h3>
+    <div class="field"><label>Nome</label><input type="text" id="editNome"></div>
+    <div class="field"><label>CPF</label><input type="text" id="editCpf"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="editEmail"></div>
+    <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
+    <div style="display:flex; gap:10px; margin-top:8px;">
+      <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditar').style.display='none'">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btnSalvarEdicao" onclick="salvarEdicao()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/supabase-client.js"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
@@ -228,7 +250,7 @@ async function importarPlanilha() {
 // ---------- Lista de unidades ----------
 async function carregarUnidades() {
   const { data: unidades } = await sb.from('csd_unidades')
-    .select('*, csd_moradores(*), csd_medidores(*)')
+    .select('*, csd_moradores(*, csd_validacoes(*)), csd_medidores(*)')
     .eq('condominio_id', condominioId)
     .order('apto');
 
@@ -244,17 +266,23 @@ async function carregarUnidades() {
   for (const u of unidades) {
     const identificacao = [u.torre, u.bloco, u.apto].filter(Boolean).join(' / ');
     const morador = (u.csd_moradores || [])[0];
+    const validacao = (morador?.csd_validacoes || [])[0];
     const medidor = (u.csd_medidores || [])[0];
 
     const statusMedidor = medidor
       ? `<span class="badge badge-success">Capturado</span>`
       : `<span class="badge badge-warning">Pendente</span>`;
 
-    const statusValidacao = morador?.dados_confirmados
+    // "Validado" só quando o morador completou TODO o fluxo (dados + doc + selfie),
+    // não apenas a etapa de confirmação de dados.
+    const statusValidacao = validacao?.status === 'validado'
       ? `<span class="badge badge-success">Validado</span>`
-      : `<span class="badge badge-neutral">Aguardando</span>`;
+      : morador?.dados_confirmados
+        ? `<span class="badge badge-warning">Dados confirmados</span>`
+        : `<span class="badge badge-neutral">Aguardando</span>`;
 
     const tr = document.createElement('tr');
+    tr.dataset.unidadeId = u.id;
     tr.innerHTML = `
       <td><strong>${escapeHtml(identificacao)}</strong></td>
       <td>${escapeHtml(morador?.nome || '—')}</td>
@@ -263,10 +291,75 @@ async function carregarUnidades() {
       <td style="white-space:nowrap;">
         <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">Medidor</button>
         <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">Link</button>
+        <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${JSON.stringify({ id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto, morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "" })})'>Editar</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
       </td>
     `;
     corpo.appendChild(tr);
   }
+}
+
+// ---------- Editar unidade / morador ----------
+let unidadeEmEdicao = null;
+
+function abrirEdicao(dados) {
+  unidadeEmEdicao = dados;
+  document.getElementById('editTorre').value = dados.torre || '';
+  document.getElementById('editBloco').value = dados.bloco || '';
+  document.getElementById('editApto').value = dados.apto || '';
+  document.getElementById('editNome').value = dados.nome || '';
+  document.getElementById('editCpf').value = dados.cpf || '';
+  document.getElementById('editEmail').value = dados.email || '';
+  document.getElementById('editTelefone').value = dados.telefone || '';
+  document.getElementById('modalEditar').style.display = 'flex';
+}
+
+async function salvarEdicao() {
+  const btn = document.getElementById('btnSalvarEdicao');
+  setBtnLoading(btn, true);
+
+  const torre = document.getElementById('editTorre').value.trim() || null;
+  const bloco = document.getElementById('editBloco').value.trim() || null;
+  const apto = document.getElementById('editApto').value.trim();
+  const nome = document.getElementById('editNome').value.trim();
+  const cpf = document.getElementById('editCpf').value.trim();
+  const email = document.getElementById('editEmail').value.trim();
+  const telefone = document.getElementById('editTelefone').value.trim();
+
+  const { error: erroUnidade } = await sb.from('csd_unidades')
+    .update({ torre, bloco, apto })
+    .eq('id', unidadeEmEdicao.id);
+
+  let erroMorador = null;
+  if (unidadeEmEdicao.morador_id) {
+    const { error } = await sb.from('csd_moradores')
+      .update({ nome, cpf, email, telefone })
+      .eq('id', unidadeEmEdicao.morador_id);
+    erroMorador = error;
+  } else if (nome || cpf || email || telefone) {
+    const { error } = await sb.from('csd_moradores')
+      .insert({ unidade_id: unidadeEmEdicao.id, nome, cpf, email, telefone, origem: 'planilha' });
+    erroMorador = error;
+  }
+
+  setBtnLoading(btn, false, 'Salvar');
+
+  if (erroUnidade || erroMorador) {
+    toast('Erro ao salvar alterações.', 'error');
+    return;
+  }
+  toast('Atualizado com sucesso!', 'success');
+  document.getElementById('modalEditar').style.display = 'none';
+  await carregarUnidades();
+}
+
+async function excluirUnidade(unidadeId, identificacao) {
+  if (!confirm(`Excluir a unidade "${identificacao}"? Isso remove também o morador, medidor e validações vinculados. Essa ação não pode ser desfeita.`)) return;
+
+  const { error } = await sb.from('csd_unidades').delete().eq('id', unidadeId);
+  if (error) { toast('Erro ao excluir.', 'error'); return; }
+  toast('Unidade excluída.', 'success');
+  await carregarUnidades();
 }
 
 async function gerarLinkUnidade(unidadeId) {
