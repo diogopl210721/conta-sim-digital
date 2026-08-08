@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/style.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -100,7 +100,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js"></script>
+<script src="assets/js/supabase-client.js?v=2"></script>
 <script>
 let perfilAtual = null;
 
@@ -145,12 +145,9 @@ async function carregarCondominios() {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;" class="area-clicavel">
-        <div>
-          <h3 style="margin-bottom:4px;">${escapeHtml(c.nome)}</h3>
-          <p class="muted" style="margin:0; font-size:14px;">${escapeHtml(c.endereco || 'Endereço não informado')}</p>
-        </div>
-        <span class="badge badge-neutral">${c.estrutura === 'torre_bloco_apto' ? 'Torre/Bloco' : 'Apto'}</span>
+      <div class="area-clicavel" style="cursor:pointer;">
+        <h3 style="margin-bottom:4px;">${escapeHtml(c.nome)}</h3>
+        <p class="muted" style="margin:0; font-size:14px;">${escapeHtml(c.endereco || 'Endereço não informado')}</p>
       </div>
       <div style="display:flex; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
         <button class="btn btn-ghost btn-sm" data-acao="editar">Editar</button>
