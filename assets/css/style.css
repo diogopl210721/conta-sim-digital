@@ -110,6 +110,17 @@ a { color: var(--flame-dark); }
 }
 .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; }
 .topbar .brand .flame-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flame); }
+.logo-chip {
+  display: inline-flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  line-height: 0;
+}
+.logo-chip img { height: 20px; display: block; }
+.logo-chip.lg { padding: 12px 22px; border-radius: 14px; }
+.logo-chip.lg img { height: 34px; }
 .topbar-back {
   background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
   width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;

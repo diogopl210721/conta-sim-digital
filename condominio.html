@@ -7,11 +7,13 @@
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 </head>
 <body>
 <div class="app-shell wide">
   <div class="topbar">
     <button class="topbar-back" onclick="window.location.href='painel.html'">←</button>
+    <div class="logo-chip"><img src="assets/img/logo-consigaz.png" alt="Consigaz"></div>
     <div class="topbar-title" id="tituloCondominio">Condomínio</div>
   </div>
 
@@ -45,7 +47,7 @@
     <!-- Lista de unidades -->
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
       <h2 style="margin:0;">Unidades</h2>
-      <button class="btn btn-outline btn-sm" onclick="exportarExcel()">Exportar Excel</button>
+      <button class="btn btn-outline btn-sm" onclick="exportarExcel(this)">Exportar Excel</button>
     </div>
     <div class="card" style="padding:0; overflow-x:auto;">
       <table class="data-table" id="tabelaUnidades" style="min-width:600px;">
@@ -377,35 +379,149 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-// ---------- Exportação ----------
-async function exportarExcel() {
+// ---------- Exportação (Excel profissional com logo e formatação) ----------
+async function exportarExcel(btn) {
+  if (btn) setBtnLoading(btn, true);
+
   const { data: unidades } = await sb.from('csd_unidades')
-    .select('*, csd_moradores(*), csd_medidores(*)')
+    .select('*, csd_moradores(*, csd_validacoes(*)), csd_medidores(*)')
     .eq('condominio_id', condominioId)
     .order('apto');
 
-  const linhas = (unidades || []).map(u => {
-    const morador = (u.csd_moradores || [])[0];
-    const medidor = (u.csd_medidores || [])[0];
-    return {
-      Torre: u.torre || '',
-      Bloco: u.bloco || '',
-      Apto: u.apto,
-      Morador: morador?.nome || '',
-      CPF: morador?.cpf || '',
-      'E-mail': morador?.email || '',
-      Telefone: morador?.telefone || '',
-      'Nº Série Medidor': medidor?.numero_serie || '',
-      'Leitura (m³)': medidor?.leitura_m3 || '',
-      'Status Medidor': medidor ? 'Capturado' : 'Pendente',
-      'Status Validação': morador?.dados_confirmados ? 'Validado' : 'Aguardando',
-    };
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'Consigaz — Conta Sim Digital';
+  workbook.created = new Date();
+
+  const NAVY = 'FF0B2947';
+  const FLAME = 'FFFF5630';
+  const SUCCESS = 'FFE7F7EC';
+  const SUCCESS_TXT = 'FF16A34A';
+  const WARNING = 'FFFEF3DA';
+  const WARNING_TXT = 'FF92660A';
+  const NEUTRAL = 'FFF0F1F4';
+  const NEUTRAL_TXT = 'FF4B5875';
+  const BORDER = { style: 'thin', color: { argb: 'FFDCE1EA' } };
+
+  const sheet = workbook.addWorksheet('Conta Sim Digital', {
+    views: [{ state: 'frozen', ySplit: 5 }],
   });
 
-  const ws = XLSX.utils.json_to_sheet(linhas);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Conta Sim Digital');
-  XLSX.writeFile(wb, `conta-sim-${(condominioAtual?.nome || 'condominio').replace(/[^a-z0-9]/gi,'-')}.xlsx`);
+  const colunas = ['Torre', 'Bloco', 'Apto', 'Morador', 'CPF', 'E-mail', 'Telefone', 'Nº Série Medidor', 'Leitura (m³)', 'Status Medidor', 'Status Validação'];
+  sheet.columns = colunas.map(c => ({ width: Math.max(14, c.length + 4) }));
+  sheet.columns[3].width = 26; // Morador
+  sheet.columns[5].width = 26; // E-mail
+
+  // Faixa de topo com a cor da marca
+  sheet.mergeCells('A1:K1');
+  sheet.getRow(1).height = 8;
+  sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAME } };
+
+  // Logo
+  try {
+    const resp = await fetch('assets/img/logo-consigaz.png');
+    const buf = await resp.arrayBuffer();
+    const imageId = workbook.addImage({ buffer: buf, extension: 'png' });
+    sheet.addImage(imageId, { tl: { col: 0.15, row: 1.15 }, ext: { width: 148, height: 35 } });
+  } catch (e) { /* segue sem logo se falhar o fetch */ }
+
+  // Título
+  sheet.mergeCells('D2:K3');
+  const tituloCell = sheet.getCell('D2');
+  tituloCell.value = `Conta Sim Digital — ${condominioAtual?.nome || ''}`;
+  tituloCell.font = { name: 'Calibri', size: 15, bold: true, color: { argb: NAVY } };
+  tituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  sheet.mergeCells('D4:K4');
+  const subtituloCell = sheet.getCell('D4');
+  subtituloCell.value = `${condominioAtual?.endereco || ''} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`;
+  subtituloCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
+  subtituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  sheet.getRow(2).height = 18;
+  sheet.getRow(3).height = 18;
+  sheet.getRow(4).height = 16;
+
+  // Cabeçalho da tabela
+  const headerRow = sheet.getRow(5);
+  headerRow.values = colunas;
+  headerRow.height = 24;
+  headerRow.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+    cell.font = { name: 'Calibri', bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    cell.alignment = { vertical: 'middle', horizontal: 'center' };
+    cell.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
+  });
+
+  // Linhas de dados
+  let totalCapturados = 0, totalValidados = 0;
+  for (const u of (unidades || [])) {
+    const morador = (u.csd_moradores || [])[0];
+    const validacao = (morador?.csd_validacoes || [])[0];
+    const medidor = (u.csd_medidores || [])[0];
+    const medidorOk = !!medidor;
+    const validadoOk = validacao?.status === 'validado';
+    if (medidorOk) totalCapturados++;
+    if (validadoOk) totalValidados++;
+
+    const row = sheet.addRow([
+      u.torre || '', u.bloco || '', u.apto,
+      morador?.nome || '', morador?.cpf || '', morador?.email || '', morador?.telefone || '',
+      medidor?.numero_serie || '', medidor?.leitura_m3 || '',
+      medidorOk ? 'Capturado' : 'Pendente',
+      validadoOk ? 'Validado' : (morador?.dados_confirmados ? 'Dados confirmados' : 'Aguardando'),
+    ]);
+    row.height = 20;
+    row.eachCell((cell, colNumber) => {
+      cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF14213D' } };
+      cell.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
+      cell.alignment = { vertical: 'middle' };
+      if (colNumber === 10) {
+        cell.alignment.horizontal = 'center';
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: medidorOk ? SUCCESS : WARNING } };
+        cell.font.color = { argb: medidorOk ? SUCCESS_TXT : WARNING_TXT };
+        cell.font.bold = true;
+      }
+      if (colNumber === 11) {
+        cell.alignment.horizontal = 'center';
+        const cor = validadoOk ? SUCCESS : (morador?.dados_confirmados ? WARNING : NEUTRAL);
+        const corTxt = validadoOk ? SUCCESS_TXT : (morador?.dados_confirmados ? WARNING_TXT : NEUTRAL_TXT);
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cor } };
+        cell.font.color = { argb: corTxt };
+        cell.font.bold = true;
+      }
+    });
+  }
+
+  sheet.autoFilter = { from: 'A5', to: `K${5 + (unidades || []).length}` };
+
+  // Aba resumo
+  const resumo = workbook.addWorksheet('Resumo');
+  resumo.columns = [{ width: 28 }, { width: 16 }];
+  resumo.mergeCells('A1:B1');
+  resumo.getCell('A1').value = condominioAtual?.nome || '';
+  resumo.getCell('A1').font = { bold: true, size: 14, color: { argb: NAVY } };
+  resumo.addRow([]);
+  const linhasResumo = [
+    ['Total de unidades', (unidades || []).length],
+    ['Medidores capturados', totalCapturados],
+    ['Moradores validados', totalValidados],
+    ['Gerado em', new Date().toLocaleString('pt-BR')],
+  ];
+  for (const [label, valor] of linhasResumo) {
+    const r = resumo.addRow([label, valor]);
+    r.getCell(1).font = { bold: true, color: { argb: NAVY } };
+  }
+
+  const arrayBuffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `conta-sim-${(condominioAtual?.nome || 'condominio').replace(/[^a-z0-9]/gi, '-')}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  if (btn) setBtnLoading(btn, false, 'Exportar Excel');
 }
 
 iniciar();
