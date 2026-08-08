@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Leitura em campo — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=10">
+<link rel="stylesheet" href="assets/css/style.css?v=11">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -35,9 +35,15 @@
       <img id="previewFoto" style="display:none;">
     </div>
     <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none;">
-    <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputFoto').click()" style="margin-bottom:16px;">
-      Tirar / escolher foto
-    </button>
+    <input type="file" id="inputFotoGaleria" accept="image/*" style="display:none;">
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('inputFoto').click()">
+        📷 Tirar foto
+      </button>
+      <button class="btn btn-outline" style="flex:1;" onclick="document.getElementById('inputFotoGaleria').click()">
+        🖼️ Da galeria
+      </button>
+    </div>
 
     <button class="btn btn-primary btn-block" id="btnExtrair" onclick="extrairComIA()" style="display:none; margin-bottom:20px;">
       Ler com IA
@@ -64,7 +70,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=10"></script>
+<script src="assets/js/supabase-client.js?v=11"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 let unidadeId = params.get('unidade');
@@ -110,7 +116,10 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-document.getElementById('inputFoto').addEventListener('change', async (e) => {
+document.getElementById('inputFoto').addEventListener('change', (e) => processarFoto(e));
+document.getElementById('inputFotoGaleria').addEventListener('change', (e) => processarFoto(e));
+
+function processarFoto(e) {
   const file = e.target.files[0];
   if (!file) return;
   fotoMediaType = file.type;
@@ -125,7 +134,7 @@ document.getElementById('inputFoto').addEventListener('change', async (e) => {
     document.getElementById('btnExtrair').style.display = 'flex';
   };
   reader.readAsDataURL(file);
-});
+}
 
 async function extrairComIA() {
   const btn = document.getElementById('btnExtrair');
