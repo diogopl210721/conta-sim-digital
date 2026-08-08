@@ -90,6 +90,18 @@ a { color: var(--flame-dark); }
 
 .app-shell.wide { max-width: 900px; }
 
+.grid-2-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+.grid-2-cols .card { margin-bottom: 0; }
+@media (min-width: 680px) {
+  .grid-2-cols { grid-template-columns: 1fr 1fr; }
+}
+
 .screen {
   flex: 1;
   padding: 24px 20px 32px;

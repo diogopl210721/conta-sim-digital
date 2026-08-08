@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=9">
+<link rel="stylesheet" href="assets/css/style.css?v=10">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -25,6 +25,7 @@
   <div class="screen">
 
     <!-- Ações rápidas -->
+    <div class="grid-2-cols">
     <div class="card">
       <h3>Link geral do condomínio</h3>
       <p style="font-size:14px;">O morador acessa esse link/QR e digita a unidade dele para começar.</p>
@@ -47,6 +48,7 @@
         <button class="btn btn-primary" id="btnImportar" onclick="importarPlanilha()" style="margin-top:16px;">Importar dados</button>
       </div>
       <div id="resultadoImportacao" class="muted" style="margin-top:12px; font-size:14px;"></div>
+    </div>
     </div>
 
     <!-- Lista de unidades -->
@@ -101,7 +103,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=9"></script>
+<script src="assets/js/supabase-client.js?v=10"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
