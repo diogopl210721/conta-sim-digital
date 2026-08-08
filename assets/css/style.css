@@ -110,6 +110,9 @@ a { color: var(--flame-dark); }
 }
 .topbar .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; }
 .topbar .brand .flame-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flame); }
+.brand-icon { display: inline-flex; align-items: center; gap: 10px; }
+.brand-icon img { height: 26px; display: block; }
+.brand-icon span { font-family: var(--font-display); font-weight: 700; font-size: 16px; color: #fff; letter-spacing: 0.01em; }
 .logo-chip {
   display: inline-flex;
   align-items: center;
