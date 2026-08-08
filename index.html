@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Conta Sim Digital — Consigaz</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="background: var(--navy-900);">
+<div class="app-shell" style="background: var(--navy-900); justify-content: center;">
+  <div class="screen" style="justify-content: center;">
+
+    <div class="center-text" style="margin-bottom: 32px;">
+      <div style="display:inline-flex; align-items:center; gap:10px; background:#fff; padding:10px 20px; border-radius:12px; margin-bottom: 20px;">
+        <span style="width:12px;height:12px;border-radius:50%;background:var(--flame);display:inline-block;"></span>
+        <span style="font-family: var(--font-display); font-weight:800; color: var(--navy-900); font-size:18px;">CONSIGAZ</span>
+      </div>
+      <h1 style="color:#fff;">Conta Sim Digital</h1>
+      <p style="color: rgba(255,255,255,0.7);">Cadastro e medição digital para consultores</p>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" id="tabLogin" onclick="mudarAba('login')">Entrar</div>
+        <div class="tab" id="tabCadastro" onclick="mudarAba('cadastro')">Criar conta</div>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="formLogin">
+        <div class="field">
+          <label for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="loginSenha">Senha</label>
+          <input type="password" id="loginSenha" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="btnLogin">Entrar</button>
+      </form>
+
+      <!-- CADASTRO -->
+      <form id="formCadastro" style="display:none;">
+        <div class="tabs" style="margin-bottom: 20px;">
+          <div class="tab active" id="tabConsultor" onclick="mudarTipoCadastro('consultor')">Sou consultor</div>
+          <div class="tab" id="tabAjudante" onclick="mudarTipoCadastro('ajudante')">Sou ajudante</div>
+        </div>
+
+        <div class="field">
+          <label for="cadNome">Nome completo</label>
+          <input type="text" id="cadNome" required autocomplete="name">
+        </div>
+
+        <div class="field" id="campoCodigoConvite" style="display:none;">
+          <label for="cadCodigo">Código de convite</label>
+          <input type="text" id="cadCodigo" maxlength="6" style="text-transform:uppercase;">
+          <div class="hint">Peça esse código ao consultor responsável pelo edifício.</div>
+        </div>
+
+        <div class="field" id="campoTelefone">
+          <label for="cadTelefone">Telefone</label>
+          <input type="tel" id="cadTelefone" autocomplete="tel">
+        </div>
+
+        <div class="field">
+          <label for="cadEmail">E-mail</label>
+          <input type="email" id="cadEmail" required autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="cadSenha">Senha</label>
+          <input type="password" id="cadSenha" required minlength="6" autocomplete="new-password">
+          <div class="hint">Mínimo de 6 caracteres.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="btnCadastro">Criar minha conta</button>
+      </form>
+    </div>
+
+    <p class="center-text" style="color: rgba(255,255,255,0.5); font-size:13px;">Consigaz Distribuidora de Gás LTDA</p>
+  </div>
+</div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script>
+let tipoCadastro = 'consultor';
+
+function mudarAba(aba) {
+  document.getElementById('tabLogin').classList.toggle('active', aba === 'login');
+  document.getElementById('tabCadastro').classList.toggle('active', aba === 'cadastro');
+  document.getElementById('formLogin').style.display = aba === 'login' ? 'block' : 'none';
+  document.getElementById('formCadastro').style.display = aba === 'cadastro' ? 'block' : 'none';
+}
+
+function mudarTipoCadastro(tipo) {
+  tipoCadastro = tipo;
+  document.getElementById('tabConsultor').classList.toggle('active', tipo === 'consultor');
+  document.getElementById('tabAjudante').classList.toggle('active', tipo === 'ajudante');
+  document.getElementById('campoCodigoConvite').style.display = tipo === 'ajudante' ? 'block' : 'none';
+  document.getElementById('campoTelefone').style.display = tipo === 'consultor' ? 'block' : 'none';
+}
+
+// Se já tiver sessão ativa, manda direto pro painel
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) window.location.href = 'painel.html';
+})();
+
+document.getElementById('formLogin').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btnLogin');
+  setBtnLoading(btn, true);
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value;
+
+  const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+  setBtnLoading(btn, false, 'Entrar');
+  if (error) {
+    toast('E-mail ou senha incorretos.', 'error');
+    return;
+  }
+  window.location.href = 'painel.html';
+});
+
+document.getElementById('formCadastro').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btnCadastro');
+  setBtnLoading(btn, true);
+
+  const nome = document.getElementById('cadNome').value.trim();
+  const email = document.getElementById('cadEmail').value.trim();
+  const senha = document.getElementById('cadSenha').value;
+  const telefone = document.getElementById('cadTelefone').value.trim();
+  const codigo = document.getElementById('cadCodigo').value.trim();
+
+  if (tipoCadastro === 'ajudante' && !codigo) {
+    toast('Informe o código de convite do consultor.', 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    return;
+  }
+
+  const { data: signUpData, error: signUpError } = await sb.auth.signUp({ email, password: senha });
+  if (signUpError) {
+    toast(signUpError.message.includes('already') ? 'Este e-mail já está cadastrado.' : 'Erro ao criar conta.', 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    return;
+  }
+
+  // Garante sessão ativa (se confirmação de e-mail estiver desligada, já vem logado)
+  if (!signUpData.session) {
+    await sb.auth.signInWithPassword({ email, password: senha });
+  }
+
+  if (tipoCadastro === 'consultor') {
+    const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
+    if (error || data?.erro) {
+      toast('Erro ao finalizar cadastro de consultor.', 'error');
+      setBtnLoading(btn, false, 'Criar minha conta');
+      return;
+    }
+    toast('Conta criada! Seu código de convite para ajudantes: ' + data.codigo_convite, 'success');
+  } else {
+    const { data, error } = await sb.rpc('csd_rpc_signup_ajudante', { p_codigo: codigo, p_nome: nome });
+    if (error || data?.erro === 'codigo_invalido') {
+      toast('Código de convite inválido.', 'error');
+      setBtnLoading(btn, false, 'Criar minha conta');
+      return;
+    }
+    toast('Conta criada! Vinculado a ' + data.consultor_nome, 'success');
+  }
+
+  setTimeout(() => { window.location.href = 'painel.html'; }, 1200);
+});
+</script>
+</body>
+</html>

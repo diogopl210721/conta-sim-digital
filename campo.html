@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Leitura em campo — Conta Sim Digital</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div class="topbar">
+    <button class="topbar-back" onclick="history.back()">←</button>
+    <div class="topbar-title">Leitura de medidor</div>
+  </div>
+
+  <div class="screen">
+
+    <div class="field" id="seletorUnidade">
+      <label for="selectUnidade">Unidade</label>
+      <select id="selectUnidade"></select>
+    </div>
+
+    <div class="photo-frame" id="molduraFoto">
+      <div class="placeholder" id="placeholderFoto">
+        <div style="font-size:32px; margin-bottom:8px;">📷</div>
+        <div>Toque para fotografar o medidor</div>
+      </div>
+      <img id="previewFoto" style="display:none;">
+    </div>
+    <input type="file" id="inputFoto" accept="image/*" capture="environment" style="display:none;">
+    <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputFoto').click()" style="margin-bottom:16px;">
+      Tirar / escolher foto
+    </button>
+
+    <button class="btn btn-primary btn-block" id="btnExtrair" onclick="extrairComIA()" style="display:none; margin-bottom:20px;">
+      Ler com IA
+    </button>
+
+    <div id="camposLeitura" style="display:none;">
+      <div class="field">
+        <label for="numeroSerie">Nº de série do medidor</label>
+        <input type="text" id="numeroSerie" class="mono">
+      </div>
+      <div class="field">
+        <label for="leituraM3">Leitura (m³)</label>
+        <input type="text" id="leituraM3" class="mono digit-input" inputmode="decimal">
+        <div class="hint">Confira o valor extraído antes de salvar.</div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+    <button class="btn btn-primary btn-block" id="btnSalvar" onclick="salvarLeitura()" disabled>
+      Salvar leitura
+    </button>
+  </div>
+</div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+let unidadeId = params.get('unidade');
+const condominioId = params.get('condominio');
+let fotoBase64 = null;
+let fotoMediaType = null;
+let coordenadas = null;
+let perfilAtual = null;
+
+async function iniciar() {
+  await exigirSessao();
+  perfilAtual = await obterPerfil();
+
+  navigator.geolocation?.getCurrentPosition(
+    pos => { coordenadas = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+    () => {}
+  );
+
+  if (unidadeId) {
+    document.getElementById('seletorUnidade').style.display = 'none';
+    const { data } = await sb.from('csd_unidades').select('*').eq('id', unidadeId).single();
+    if (data) document.querySelector('.topbar-title').textContent = [data.torre, data.bloco, data.apto].filter(Boolean).join(' / ');
+  } else {
+    await carregarUnidadesPendentes();
+  }
+}
+
+async function carregarUnidadesPendentes() {
+  let query = sb.from('csd_unidades').select('*, csd_condominios(nome)').order('apto');
+  if (condominioId) query = query.eq('condominio_id', condominioId);
+  const { data } = await query;
+  const select = document.getElementById('selectUnidade');
+  select.innerHTML = (data || []).map(u =>
+    `<option value="${u.id}">${[u.torre, u.bloco, u.apto].filter(Boolean).join(' / ')} — ${escapeHtml(u.csd_condominios?.nome || '')}</option>`
+  ).join('');
+  select.addEventListener('change', () => { unidadeId = select.value; });
+  if (data && data.length) unidadeId = data[0].id;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+document.getElementById('inputFoto').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  fotoMediaType = file.type;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    fotoBase64 = dataUrl.split(',')[1];
+    document.getElementById('previewFoto').src = dataUrl;
+    document.getElementById('previewFoto').style.display = 'block';
+    document.getElementById('placeholderFoto').style.display = 'none';
+    document.getElementById('btnExtrair').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+});
+
+async function extrairComIA() {
+  const btn = document.getElementById('btnExtrair');
+  setBtnLoading(btn, true);
+
+  const apiKey = localStorage.getItem('csd_anthropic_key') || prompt('Chave da API Anthropic (fica salva só neste navegador):');
+  if (apiKey) localStorage.setItem('csd_anthropic_key', apiKey);
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: fotoMediaType, data: fotoBase64 } },
+            { type: 'text', text: 'Esta é a foto de um medidor de gás. Extraia o número de série impresso (geralmente um código alfanumérico como B25L0018007D) e a leitura do mostrador (os números pretos seguidos dos números vermelhos, formando um valor em m³, ex: 00037,801). Responda APENAS em JSON, sem markdown, no formato: {"numero_serie": "...", "leitura_m3": "..."}. Se não conseguir ler algum dado com certeza, retorne string vazia para ele.' }
+          ]
+        }]
+      })
+    });
+    const data = await resp.json();
+    const texto = data.content?.find(b => b.type === 'text')?.text || '{}';
+    const limpo = texto.replace(/```json|```/g, '').trim();
+    const extraido = JSON.parse(limpo);
+
+    document.getElementById('numeroSerie').value = extraido.numero_serie || '';
+    document.getElementById('leituraM3').value = extraido.leitura_m3 || '';
+    document.getElementById('camposLeitura').style.display = 'block';
+    document.getElementById('btnSalvar').disabled = false;
+    toast('Leitura extraída — confira antes de salvar.', 'success');
+  } catch (err) {
+    toast('Não consegui ler automaticamente. Preencha manualmente.', 'error');
+    document.getElementById('camposLeitura').style.display = 'block';
+    document.getElementById('btnSalvar').disabled = false;
+  }
+
+  setBtnLoading(btn, false, 'Ler com IA');
+}
+
+async function salvarLeitura() {
+  if (!unidadeId) { toast('Selecione a unidade.', 'error'); return; }
+  const btn = document.getElementById('btnSalvar');
+  setBtnLoading(btn, true);
+
+  try {
+    let fotoUrl = null;
+    if (fotoBase64) {
+      const nomeArquivo = `medidores/${unidadeId}-${Date.now()}.jpg`;
+      const bytes = Uint8Array.from(atob(fotoBase64), c => c.charCodeAt(0));
+      const { error: erroUpload } = await sb.storage.from('csd-fotos').upload(nomeArquivo, bytes, { contentType: fotoMediaType || 'image/jpeg' });
+      if (!erroUpload) {
+        fotoUrl = sb.storage.from('csd-fotos').getPublicUrl(nomeArquivo).data.publicUrl;
+      }
+    }
+
+    const { error } = await sb.from('csd_medidores').insert({
+      unidade_id: unidadeId,
+      numero_serie: document.getElementById('numeroSerie').value.trim() || null,
+      leitura_m3: parseFloat((document.getElementById('leituraM3').value || '0').replace(',', '.')) || null,
+      foto_url: fotoUrl,
+      latitude: coordenadas?.lat || null,
+      longitude: coordenadas?.lng || null,
+      capturado_por_tipo: perfilAtual.tipo,
+      capturado_por_id: perfilAtual.id,
+      capturado_em: new Date().toISOString(),
+    });
+
+    if (error) throw error;
+    toast('Leitura salva com sucesso!', 'success');
+    setTimeout(() => history.back(), 1000);
+  } catch (err) {
+    toast('Erro ao salvar. Tente novamente.', 'error');
+    setBtnLoading(btn, false, 'Salvar leitura');
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>

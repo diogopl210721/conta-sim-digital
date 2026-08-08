@@ -1,0 +1,299 @@
+/* ============================================================
+   CONTA SIM DIGITAL — Design tokens & componentes base
+   Paleta: navy institucional Consigaz + laranja-chama de acento
+   Tipografia: Poppins (display) + Inter (corpo) + Roboto Mono (dados)
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;700&display=swap');
+
+:root {
+  /* Cores de marca */
+  --navy-900: #0B2947;
+  --navy-800: #123A5E;
+  --navy-700: #1B4C79;
+  --flame: #FF5630;
+  --flame-dark: #E6431C;
+  --flame-light: #FFE4DB;
+  --success: #16A34A;
+  --success-light: #E7F7EC;
+  --warning: #F59E0B;
+  --warning-light: #FEF3DA;
+  --danger: #DC2626;
+  --danger-light: #FDE8E8;
+
+  /* Neutros */
+  --bg: #F5F7FA;
+  --surface: #FFFFFF;
+  --border: #DCE1EA;
+  --ink: #14213D;
+  --ink-soft: #4B5875;
+  --ink-faint: #8A93A6;
+
+  /* Tipografia */
+  --font-display: 'Poppins', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+
+  /* Espaçamento / forma */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --shadow-card: 0 2px 12px rgba(11, 41, 71, 0.08);
+  --shadow-pop: 0 12px 32px rgba(11, 41, 71, 0.16);
+
+  /* Alvo de toque mínimo — pensado para uso por idosos */
+  --tap-min: 56px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--navy-900);
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+h1 { font-size: 28px; font-weight: 700; }
+h2 { font-size: 22px; font-weight: 700; }
+h3 { font-size: 18px; font-weight: 600; }
+p { margin: 0 0 12px; color: var(--ink-soft); }
+
+a { color: var(--flame-dark); }
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+/* ---------- Layout ---------- */
+.app-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell.wide { max-width: 900px; }
+
+.screen {
+  flex: 1;
+  padding: 24px 20px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  background: var(--navy-900);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar .brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; }
+.topbar .brand .flame-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--flame); }
+.topbar-back {
+  background: none; border: none; color: #fff; font-size: 22px; cursor: pointer;
+  width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+}
+.topbar-back:hover { background: rgba(255,255,255,0.12); }
+.topbar-title { font-weight: 600; font-size: 16px; flex: 1; }
+
+/* ---------- Botões ---------- */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 17px;
+  border: none;
+  border-radius: var(--radius-sm);
+  min-height: var(--tap-min);
+  padding: 0 24px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.08s ease, box-shadow 0.15s ease, background 0.15s ease;
+  width: 100%;
+}
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible { outline: 3px solid var(--navy-700); outline-offset: 2px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-primary { background: var(--flame); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--flame-dark); }
+.btn-secondary { background: var(--navy-900); color: #fff; }
+.btn-secondary:hover:not(:disabled) { background: var(--navy-800); }
+.btn-outline { background: transparent; color: var(--navy-900); border: 2px solid var(--border); }
+.btn-outline:hover:not(:disabled) { border-color: var(--navy-700); }
+.btn-ghost { background: transparent; color: var(--ink-soft); }
+.btn-sm { min-height: 44px; font-size: 15px; padding: 0 16px; width: auto; }
+.btn-block { display: flex; }
+
+/* ---------- Formulários ---------- */
+.field { margin-bottom: 18px; }
+.field label {
+  display: block;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--navy-900);
+  margin-bottom: 8px;
+}
+.field .hint { font-size: 13px; color: var(--ink-faint); margin-top: 6px; }
+input[type=text], input[type=email], input[type=tel], input[type=password], input[type=number], select, textarea {
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 18px;
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+}
+textarea { padding: 14px 16px; min-height: 100px; }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--flame);
+  box-shadow: 0 0 0 4px var(--flame-light);
+}
+
+/* Entrada numérica grande — CPF, apto (estilo teclado) */
+.digit-input {
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 8px;
+  min-height: 72px;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 16px;
+}
+.card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.card-row:last-child { border-bottom: none; }
+
+/* ---------- Badges de status ---------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.badge-success { background: var(--success-light); color: var(--success); }
+.badge-warning { background: var(--warning-light); color: #92660A; }
+.badge-danger { background: var(--danger-light); color: var(--danger); }
+.badge-neutral { background: var(--border); color: var(--ink-soft); }
+
+/* ---------- Indicador de progresso "medidor" (elemento assinatura) ----------
+   Um mostrador circular estilo relógio de gás: o ponteiro avança a cada etapa
+   do fluxo do morador, reforçando visualmente do que se trata o sistema. */
+.medidor-dial {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 20px;
+  position: relative;
+}
+.medidor-dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.medidor-dial .track { fill: none; stroke: var(--border); stroke-width: 8; }
+.medidor-dial .fill { fill: none; stroke: var(--flame); stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.4s ease; }
+.medidor-dial .label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--navy-900);
+}
+
+/* ---------- Utilitários ---------- */
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.center-text { text-align: center; }
+.muted { color: var(--ink-faint); }
+.spacer { flex: 1; }
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--ink-faint);
+}
+
+.spinner {
+  width: 22px; height: 22px;
+  border: 3px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);
+  background: var(--navy-900); color: #fff; padding: 14px 20px;
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-pop);
+  font-size: 15px; font-weight: 500; z-index: 100; max-width: 90%;
+  text-align: center;
+}
+.toast.error { background: var(--danger); }
+.toast.success { background: var(--success); }
+
+.tabs { display: flex; gap: 4px; background: var(--border); padding: 4px; border-radius: var(--radius-sm); margin-bottom: 20px; }
+.tab { flex: 1; text-align: center; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; color: var(--ink-soft); }
+.tab.active { background: var(--surface); color: var(--navy-900); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+/* Camera / preview de foto */
+.photo-frame {
+  aspect-ratio: 4/3;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--navy-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 16px;
+}
+.photo-frame img, .photo-frame video { width: 100%; height: 100%; object-fit: cover; }
+.photo-frame .placeholder { color: rgba(255,255,255,0.6); text-align: center; padding: 20px; }
+
+table.data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+table.data-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); padding: 10px 8px; border-bottom: 2px solid var(--border); }
+table.data-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
+
+@media (max-width: 420px) {
+  h1 { font-size: 24px; }
+  .screen { padding: 20px 16px 28px; }
+}

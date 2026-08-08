@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Cadastro do morador — Conta Sim Digital</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app-shell">
+  <div class="topbar">
+    <div class="brand" style="margin:0 auto;"><span class="flame-dot"></span> Conta Sim Digital</div>
+  </div>
+
+  <div class="screen">
+
+    <div class="medidor-dial">
+      <svg viewBox="0 0 100 100">
+        <circle class="track" cx="50" cy="50" r="44"></circle>
+        <circle class="fill" id="dialFill" cx="50" cy="50" r="44" stroke-dasharray="276" stroke-dashoffset="276"></circle>
+      </svg>
+      <div class="label" id="dialLabel">1/5</div>
+    </div>
+
+    <!-- ETAPA: carregando -->
+    <div id="etapaCarregando" class="center-text">
+      <p>Carregando...</p>
+    </div>
+
+    <!-- ETAPA: erro de link -->
+    <div id="etapaErro" style="display:none;" class="center-text">
+      <h2>Link inválido</h2>
+      <p id="mensagemErro">Este link não é mais válido. Peça um novo link ao consultor responsável.</p>
+    </div>
+
+    <!-- ETAPA: localizar unidade (link geral do condomínio) -->
+    <div id="etapaLocalizar" style="display:none;">
+      <h2>Qual é a sua unidade?</h2>
+      <p id="nomeCondominioLocalizar" class="muted"></p>
+      <div class="field" id="campoTorreLocalizar" style="display:none;">
+        <label>Torre</label>
+        <input type="text" id="inputTorre">
+      </div>
+      <div class="field" id="campoBlocoLocalizar" style="display:none;">
+        <label>Bloco</label>
+        <input type="text" id="inputBloco">
+      </div>
+      <div class="field">
+        <label>Apto</label>
+        <input type="text" id="inputApto" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="confirmarUnidade()">Continuar</button>
+    </div>
+
+    <!-- ETAPA: validar CPF -->
+    <div id="etapaCpf" style="display:none;">
+      <h2>Confirme sua identidade</h2>
+      <p>Para sua segurança, digite os <strong>3 últimos números</strong> do seu CPF.</p>
+      <div class="field">
+        <input type="text" id="inputCpf3" class="digit-input" inputmode="numeric" maxlength="3" placeholder="123">
+      </div>
+      <p class="muted" id="tentativasRestantes" style="font-size:14px;"></p>
+      <button class="btn btn-primary btn-block" onclick="validarCpf()">Confirmar</button>
+    </div>
+
+    <!-- ETAPA: cadastro do zero -->
+    <div id="etapaCadastroZero" style="display:none;">
+      <h2>Vamos fazer seu cadastro</h2>
+      <p>Não encontramos seus dados na planilha do síndico — preencha abaixo.</p>
+      <div class="field"><label>Nome completo</label><input type="text" id="zeroNome"></div>
+      <div class="field"><label>CPF</label><input type="text" id="zeroCpf" inputmode="numeric" placeholder="000.000.000-00"></div>
+      <div class="field"><label>E-mail</label><input type="email" id="zeroEmail"></div>
+      <div class="field"><label>Telefone</label><input type="tel" id="zeroTelefone"></div>
+      <button class="btn btn-primary btn-block" onclick="salvarCadastroZero()">Continuar</button>
+    </div>
+
+    <!-- ETAPA: confirmar dados -->
+    <div id="etapaConfirmar" style="display:none;">
+      <h2>Confira seus dados</h2>
+      <div class="field"><label>Nome completo</label><input type="text" id="confNome"></div>
+      <div class="field"><label>E-mail</label><input type="email" id="confEmail"></div>
+      <div class="field"><label>Telefone</label><input type="tel" id="confTelefone"></div>
+      <button class="btn btn-primary btn-block" onclick="salvarConfirmacao()">Confirmar dados</button>
+    </div>
+
+    <!-- ETAPA: foto documento -->
+    <div id="etapaDocumento" style="display:none;">
+      <h2>Foto do documento</h2>
+      <p>Tire uma foto do seu RG ou CNH.</p>
+      <div class="photo-frame">
+        <div class="placeholder" id="placeholderDoc">
+          <div style="font-size:32px; margin-bottom:8px;">🪪</div>
+          <div>Toque para fotografar</div>
+        </div>
+        <img id="previewDoc" style="display:none;">
+      </div>
+      <input type="file" id="inputDoc" accept="image/*" capture="environment" style="display:none;">
+      <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputDoc').click()" style="margin-bottom:16px;">Tirar foto do documento</button>
+      <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="irParaSelfie()" disabled>Continuar</button>
+    </div>
+
+    <!-- ETAPA: selfie -->
+    <div id="etapaSelfie" style="display:none;">
+      <h2>Agora, uma selfie</h2>
+      <p>Isso confirma que é você mesmo concluindo o cadastro.</p>
+      <div class="photo-frame">
+        <div class="placeholder" id="placeholderSelfie">
+          <div style="font-size:32px; margin-bottom:8px;">🙂</div>
+          <div>Toque para tirar a selfie</div>
+        </div>
+        <img id="previewSelfie" style="display:none;">
+      </div>
+      <input type="file" id="inputSelfie" accept="image/*" capture="user" style="display:none;">
+      <button class="btn btn-secondary btn-block" onclick="document.getElementById('inputSelfie').click()" style="margin-bottom:16px;">Tirar selfie</button>
+      <button class="btn btn-primary btn-block" id="btnFinalizar" onclick="finalizar()" disabled>Concluir cadastro</button>
+    </div>
+
+    <!-- ETAPA: concluído -->
+    <div id="etapaConcluido" style="display:none;" class="center-text">
+      <div style="font-size:48px; margin-bottom:12px;">✅</div>
+      <h2>Cadastro concluído!</h2>
+      <p>Seus dados foram enviados com sucesso. Obrigado!</p>
+    </div>
+
+  </div>
+</div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const token = params.get('token');
+
+let condominioId = null;
+let unidadeId = null;
+let moradorId = null;
+let docBase64 = null, docMediaType = null;
+let selfieBase64 = null, selfieMediaType = null;
+
+const ETAPAS = ['carregando','localizar','cpf','cadastroZero','confirmar','documento','selfie','concluido'];
+function mostrarEtapa(nome, passoVisual) {
+  ETAPAS.forEach(e => document.getElementById('etapa' + e.charAt(0).toUpperCase() + e.slice(1)).style.display = (e === nome ? 'block' : 'none'));
+  if (passoVisual) atualizarDial(passoVisual);
+}
+
+function atualizarDial(passo) {
+  const total = 5;
+  const circ = 276;
+  const offset = circ - (circ * (passo / total));
+  document.getElementById('dialFill').style.strokeDashoffset = offset;
+  document.getElementById('dialLabel').textContent = passo + '/' + total;
+}
+
+async function iniciar() {
+  if (!token) { mostrarErro('Link não informado.'); return; }
+
+  const { data, error } = await sb.rpc('csd_rpc_resolver_link', { p_token: token });
+  if (error || data?.erro) {
+    mostrarErro(data?.erro === 'link_expirado' ? 'Este link expirou. Peça um novo ao consultor.' : 'Este link não é válido.');
+    return;
+  }
+
+  condominioId = data.condominio_id;
+
+  if (data.tipo === 'unidade') {
+    unidadeId = data.unidade_id;
+    mostrarEtapa('cpf', 1);
+  } else {
+    document.getElementById('nomeCondominioLocalizar').textContent = data.condominio_nome;
+    if (data.estrutura === 'torre_bloco_apto') {
+      document.getElementById('campoTorreLocalizar').style.display = 'block';
+      document.getElementById('campoBlocoLocalizar').style.display = 'block';
+    }
+    mostrarEtapa('localizar', 1);
+  }
+}
+
+function mostrarErro(msg) {
+  document.getElementById('mensagemErro').textContent = msg;
+  mostrarEtapa('erro');
+}
+
+async function confirmarUnidade() {
+  const apto = document.getElementById('inputApto').value.trim();
+  if (!apto) { toast('Informe o número do apto.', 'error'); return; }
+  const torre = document.getElementById('inputTorre')?.value.trim() || '';
+  const bloco = document.getElementById('inputBloco')?.value.trim() || '';
+
+  const { data, error } = await sb.rpc('csd_rpc_localizar_unidade', {
+    p_condominio_id: condominioId, p_torre: torre, p_bloco: bloco, p_apto: apto
+  });
+  if (error) { toast('Erro ao localizar unidade.', 'error'); return; }
+  unidadeId = data.unidade_id;
+  mostrarEtapa('cpf', 1);
+}
+
+async function validarCpf() {
+  const digitos = document.getElementById('inputCpf3').value.trim();
+  if (digitos.length !== 3) { toast('Digite os 3 últimos números do CPF.', 'error'); return; }
+
+  const { data, error } = await sb.rpc('csd_rpc_validar_cpf', { p_unidade_id: unidadeId, p_ultimos_digitos: digitos });
+  if (error) { toast('Erro ao validar. Tente novamente.', 'error'); return; }
+
+  if (data.ok) {
+    moradorId = data.morador_id;
+    document.getElementById('confNome').value = data.nome || '';
+    document.getElementById('confEmail').value = data.email || '';
+    document.getElementById('confTelefone').value = data.telefone || '';
+    mostrarEtapa('confirmar', 2);
+  } else if (data.bloqueado) {
+    toast('Não conseguimos confirmar. Vamos fazer seu cadastro.', 'error');
+    mostrarEtapa('cadastroZero', 2);
+  } else {
+    document.getElementById('tentativasRestantes').textContent = `Não confere. Você tem mais ${data.tentativas_restantes} tentativa(s).`;
+    document.getElementById('inputCpf3').value = '';
+  }
+}
+
+async function salvarCadastroZero() {
+  const nome = document.getElementById('zeroNome').value.trim();
+  const cpf = document.getElementById('zeroCpf').value.trim();
+  const email = document.getElementById('zeroEmail').value.trim();
+  const telefone = document.getElementById('zeroTelefone').value.trim();
+
+  if (!nome || !cpf) { toast('Preencha nome e CPF.', 'error'); return; }
+
+  const { data, error } = await sb.rpc('csd_rpc_cadastrar_morador_zero', {
+    p_unidade_id: unidadeId, p_nome: nome, p_cpf: cpf, p_email: email, p_telefone: telefone
+  });
+  if (error) { toast('Erro ao salvar cadastro.', 'error'); return; }
+  moradorId = data.morador_id;
+
+  document.getElementById('confNome').value = nome;
+  document.getElementById('confEmail').value = email;
+  document.getElementById('confTelefone').value = telefone;
+  mostrarEtapa('confirmar', 2);
+}
+
+async function salvarConfirmacao() {
+  const nome = document.getElementById('confNome').value.trim();
+  const email = document.getElementById('confEmail').value.trim();
+  const telefone = document.getElementById('confTelefone').value.trim();
+
+  if (!nome) { toast('Informe seu nome completo.', 'error'); return; }
+
+  const { error } = await sb.rpc('csd_rpc_atualizar_morador', {
+    p_morador_id: moradorId, p_nome: nome, p_email: email, p_telefone: telefone
+  });
+  if (error) { toast('Erro ao salvar dados.', 'error'); return; }
+  mostrarEtapa('documento', 3);
+}
+
+document.getElementById('inputDoc').addEventListener('change', (e) => lerFoto(e, 'Doc'));
+document.getElementById('inputSelfie').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
+
+function lerFoto(e, tipo) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = reader.result;
+    if (tipo === 'Doc') { docBase64 = dataUrl.split(',')[1]; docMediaType = file.type; }
+    else { selfieBase64 = dataUrl.split(',')[1]; selfieMediaType = file.type; }
+
+    document.getElementById('preview' + tipo).src = dataUrl;
+    document.getElementById('preview' + tipo).style.display = 'block';
+    document.getElementById('placeholder' + tipo).style.display = 'none';
+    document.getElementById('btn' + (tipo === 'Doc' ? 'ContinuarDoc' : 'Finalizar')).disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function irParaSelfie() { mostrarEtapa('selfie', 4); }
+
+async function uploadFoto(base64, mediaType, prefixo) {
+  const nomeArquivo = `${prefixo}/${moradorId}-${Date.now()}.jpg`;
+  const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+  const { error } = await sb.storage.from('csd-fotos').upload(nomeArquivo, bytes, { contentType: mediaType || 'image/jpeg' });
+  if (error) throw error;
+  return sb.storage.from('csd-fotos').getPublicUrl(nomeArquivo).data.publicUrl;
+}
+
+async function finalizar() {
+  const btn = document.getElementById('btnFinalizar');
+  setBtnLoading(btn, true);
+  try {
+    const [docUrl, selfieUrl] = await Promise.all([
+      uploadFoto(docBase64, docMediaType, 'documentos'),
+      uploadFoto(selfieBase64, selfieMediaType, 'selfies'),
+    ]);
+
+    const { error } = await sb.rpc('csd_rpc_finalizar_validacao', {
+      p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null
+    });
+    if (error) throw error;
+
+    mostrarEtapa('concluido', 5);
+  } catch (err) {
+    toast('Erro ao concluir. Tente novamente.', 'error');
+    setBtnLoading(btn, false, 'Concluir cadastro');
+  }
+}
+
+iniciar();
+</script>
+</body>
+</html>

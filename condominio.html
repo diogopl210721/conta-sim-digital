@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Condomínio — Conta Sim Digital</title>
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="app-shell wide">
+  <div class="topbar">
+    <button class="topbar-back" onclick="window.location.href='painel.html'">←</button>
+    <div class="topbar-title" id="tituloCondominio">Condomínio</div>
+  </div>
+
+  <div class="screen">
+
+    <!-- Ações rápidas -->
+    <div class="card">
+      <h3>Link geral do condomínio</h3>
+      <p style="font-size:14px;">O morador acessa esse link/QR e digita a unidade dele para começar.</p>
+      <div id="linkGeralBox" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
+        <input type="text" id="linkGeralInput" readonly class="mono" style="font-size:14px; flex:1; min-width:200px;">
+        <button class="btn btn-outline btn-sm" onclick="copiarParaAreaTransferencia(document.getElementById('linkGeralInput').value)">Copiar</button>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btnGerarLinkGeral" onclick="gerarLinkGeral()" style="margin-top:10px;">Gerar link geral</button>
+    </div>
+
+    <!-- Importação de planilha -->
+    <div class="card">
+      <h3>Importar planilha do síndico</h3>
+      <p style="font-size:14px;">Qualquer formato — o sistema ajuda a mapear as colunas.</p>
+      <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv" style="margin-bottom:12px;">
+      <div id="areaMapeamento" style="display:none;">
+        <div class="divider"></div>
+        <h4 style="margin-bottom:12px;">Mapeamento de colunas</h4>
+        <div id="camposMapeamento" class="stack"></div>
+        <button class="btn btn-primary" id="btnImportar" onclick="importarPlanilha()" style="margin-top:16px;">Importar dados</button>
+      </div>
+      <div id="resultadoImportacao" class="muted" style="margin-top:12px; font-size:14px;"></div>
+    </div>
+
+    <!-- Lista de unidades -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <h2 style="margin:0;">Unidades</h2>
+      <button class="btn btn-outline btn-sm" onclick="exportarExcel()">Exportar Excel</button>
+    </div>
+    <div class="card" style="padding:0; overflow-x:auto;">
+      <table class="data-table" id="tabelaUnidades" style="min-width:600px;">
+        <thead>
+          <tr>
+            <th>Unidade</th>
+            <th>Morador</th>
+            <th>Medidor</th>
+            <th>Validação</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="corpoTabela"></tbody>
+      </table>
+    </div>
+    <div id="vazioUnidades" class="empty-state" style="display:none;">
+      <p>Nenhuma unidade cadastrada ainda. Importe a planilha do síndico acima.</p>
+    </div>
+  </div>
+</div>
+
+<script src="assets/js/supabase-client.js"></script>
+<script>
+const params = new URLSearchParams(window.location.search);
+const condominioId = params.get('id');
+let condominioAtual = null;
+let planilhaLinhas = [];
+let planilhaCabecalhos = [];
+
+const CAMPOS_ALVO = [
+  { chave: 'torre', label: 'Torre', obrigatorio: false, aliases: ['torre'] },
+  { chave: 'bloco', label: 'Bloco', obrigatorio: false, aliases: ['bloco'] },
+  { chave: 'apto', label: 'Apto / Unidade', obrigatorio: true, aliases: ['apto', 'unidade', 'apartamento'] },
+  { chave: 'nome', label: 'Nome do morador', obrigatorio: false, aliases: ['nome', 'titular', 'cliente', 'morador'] },
+  { chave: 'cpf', label: 'CPF / CNPJ', obrigatorio: false, aliases: ['cpf', 'cnpj', 'doc'] },
+  { chave: 'email', label: 'E-mail', obrigatorio: false, aliases: ['email', 'e-mail'] },
+  { chave: 'telefone', label: 'Telefone', obrigatorio: false, aliases: ['telefone', 'celular', 'contato', 'tel'] },
+];
+
+async function iniciar() {
+  await exigirSessao();
+  const { data, error } = await sb.from('csd_condominios').select('*').eq('id', condominioId).single();
+  if (error || !data) {
+    toast('Condomínio não encontrado.', 'error');
+    return;
+  }
+  condominioAtual = data;
+  document.getElementById('tituloCondominio').textContent = data.nome;
+  await carregarUnidades();
+}
+
+// ---------- Link geral ----------
+async function gerarLinkGeral() {
+  const { data, error } = await sb.from('csd_links_acesso')
+    .insert({ condominio_id: condominioId })
+    .select().single();
+  if (error) { toast('Erro ao gerar link.', 'error'); return; }
+  const url = `${window.location.origin}${window.location.pathname.replace('condominio.html','')}morador.html?token=${data.token}`;
+  document.getElementById('linkGeralInput').value = url;
+  document.getElementById('linkGeralBox').style.display = 'flex';
+}
+
+// ---------- Importação ----------
+document.getElementById('arquivoPlanilha').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  const primeiraAba = wb.Sheets[wb.SheetNames[0]];
+  const linhas = XLSX.utils.sheet_to_json(primeiraAba, { defval: '' });
+  if (linhas.length === 0) { toast('Planilha vazia.', 'error'); return; }
+
+  planilhaLinhas = linhas;
+  planilhaCabecalhos = Object.keys(linhas[0]);
+  montarMapeamento();
+});
+
+function normalizar(s) {
+  return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function montarMapeamento() {
+  const area = document.getElementById('camposMapeamento');
+  area.innerHTML = '';
+
+  for (const campo of CAMPOS_ALVO) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'field';
+    wrapper.style.marginBottom = '10px';
+
+    const label = document.createElement('label');
+    label.textContent = campo.label + (campo.obrigatorio ? ' *' : '');
+    wrapper.appendChild(label);
+
+    const select = document.createElement('select');
+    select.id = 'map_' + campo.chave;
+    select.innerHTML = '<option value="">— não usar —</option>' +
+      planilhaCabecalhos.map(h => `<option value="${escapeAttr(h)}">${escapeAttr(h)}</option>`).join('');
+
+    // Auto-detecção por aliases
+    const match = planilhaCabecalhos.find(h => campo.aliases.some(a => normalizar(h).includes(a)));
+    if (match) select.value = match;
+
+    wrapper.appendChild(select);
+    area.appendChild(wrapper);
+  }
+
+  document.getElementById('areaMapeamento').style.display = 'block';
+}
+
+function escapeAttr(s) { return (s || '').toString().replace(/"/g, '&quot;'); }
+
+async function importarPlanilha() {
+  const btn = document.getElementById('btnImportar');
+  const mapeamento = {};
+  for (const campo of CAMPOS_ALVO) {
+    mapeamento[campo.chave] = document.getElementById('map_' + campo.chave).value;
+  }
+  if (!mapeamento.apto) {
+    toast('Selecione ao menos a coluna do Apto/Unidade.', 'error');
+    return;
+  }
+
+  setBtnLoading(btn, true);
+  let importadas = 0, erros = 0;
+
+  for (const linha of planilhaLinhas) {
+    const torre = mapeamento.torre ? String(linha[mapeamento.torre] || '').trim() : null;
+    const bloco = mapeamento.bloco ? String(linha[mapeamento.bloco] || '').trim() : null;
+    const apto = String(linha[mapeamento.apto] || '').trim();
+    if (!apto) continue;
+
+    const nome = mapeamento.nome ? String(linha[mapeamento.nome] || '').trim() : '';
+    const cpf = mapeamento.cpf ? String(linha[mapeamento.cpf] || '').trim() : '';
+    const email = mapeamento.email ? String(linha[mapeamento.email] || '').trim() : '';
+    const telefone = mapeamento.telefone ? String(linha[mapeamento.telefone] || '').trim() : '';
+
+    try {
+      // Encontra ou cria a unidade
+      let { data: unidade } = await sb.from('csd_unidades')
+        .select('id')
+        .eq('condominio_id', condominioId)
+        .eq('torre', torre || null)
+        .eq('bloco', bloco || null)
+        .eq('apto', apto)
+        .maybeSingle();
+
+      if (!unidade) {
+        const { data: novaUnidade, error: erroUnidade } = await sb.from('csd_unidades')
+          .insert({ condominio_id: condominioId, torre: torre || null, bloco: bloco || null, apto })
+          .select('id').single();
+        if (erroUnidade) throw erroUnidade;
+        unidade = novaUnidade;
+      }
+
+      // Cria o morador vinculado (se a planilha trouxer algum dado)
+      if (nome || cpf || email || telefone) {
+        const { data: moradorExistente } = await sb.from('csd_moradores')
+          .select('id').eq('unidade_id', unidade.id).eq('origem', 'planilha').maybeSingle();
+
+        if (!moradorExistente) {
+          await sb.from('csd_moradores').insert({
+            unidade_id: unidade.id, nome, cpf, email, telefone, origem: 'planilha'
+          });
+        }
+      }
+      importadas++;
+    } catch (err) {
+      erros++;
+    }
+  }
+
+  setBtnLoading(btn, false, 'Importar dados');
+  document.getElementById('resultadoImportacao').textContent =
+    `${importadas} unidade(s) importada(s)` + (erros ? `, ${erros} erro(s).` : '.');
+  toast('Importação concluída!', 'success');
+  await carregarUnidades();
+}
+
+// ---------- Lista de unidades ----------
+async function carregarUnidades() {
+  const { data: unidades } = await sb.from('csd_unidades')
+    .select('*, csd_moradores(*), csd_medidores(*)')
+    .eq('condominio_id', condominioId)
+    .order('apto');
+
+  const corpo = document.getElementById('corpoTabela');
+  corpo.innerHTML = '';
+
+  if (!unidades || unidades.length === 0) {
+    document.getElementById('vazioUnidades').style.display = 'block';
+    return;
+  }
+  document.getElementById('vazioUnidades').style.display = 'none';
+
+  for (const u of unidades) {
+    const identificacao = [u.torre, u.bloco, u.apto].filter(Boolean).join(' / ');
+    const morador = (u.csd_moradores || [])[0];
+    const medidor = (u.csd_medidores || [])[0];
+
+    const statusMedidor = medidor
+      ? `<span class="badge badge-success">Capturado</span>`
+      : `<span class="badge badge-warning">Pendente</span>`;
+
+    const statusValidacao = morador?.dados_confirmados
+      ? `<span class="badge badge-success">Validado</span>`
+      : `<span class="badge badge-neutral">Aguardando</span>`;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(identificacao)}</strong></td>
+      <td>${escapeHtml(morador?.nome || '—')}</td>
+      <td>${statusMedidor}</td>
+      <td>${statusValidacao}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">Medidor</button>
+        <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">Link</button>
+      </td>
+    `;
+    corpo.appendChild(tr);
+  }
+}
+
+async function gerarLinkUnidade(unidadeId) {
+  const { data, error } = await sb.from('csd_links_acesso')
+    .insert({ unidade_id: unidadeId })
+    .select().single();
+  if (error) { toast('Erro ao gerar link.', 'error'); return; }
+  const url = `${window.location.origin}${window.location.pathname.replace('condominio.html','')}morador.html?token=${data.token}`;
+  copiarParaAreaTransferencia(url);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+// ---------- Exportação ----------
+async function exportarExcel() {
+  const { data: unidades } = await sb.from('csd_unidades')
+    .select('*, csd_moradores(*), csd_medidores(*)')
+    .eq('condominio_id', condominioId)
+    .order('apto');
+
+  const linhas = (unidades || []).map(u => {
+    const morador = (u.csd_moradores || [])[0];
+    const medidor = (u.csd_medidores || [])[0];
+    return {
+      Torre: u.torre || '',
+      Bloco: u.bloco || '',
+      Apto: u.apto,
+      Morador: morador?.nome || '',
+      CPF: morador?.cpf || '',
+      'E-mail': morador?.email || '',
+      Telefone: morador?.telefone || '',
+      'Nº Série Medidor': medidor?.numero_serie || '',
+      'Leitura (m³)': medidor?.leitura_m3 || '',
+      'Status Medidor': medidor ? 'Capturado' : 'Pendente',
+      'Status Validação': morador?.dados_confirmados ? 'Validado' : 'Aguardando',
+    };
+  });
+
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Conta Sim Digital');
+  XLSX.writeFile(wb, `conta-sim-${(condominioAtual?.nome || 'condominio').replace(/[^a-z0-9]/gi,'-')}.xlsx`);
+}
+
+iniciar();
+</script>
+</body>
+</html>
