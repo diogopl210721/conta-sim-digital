@@ -263,6 +263,16 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ---------- Utilitários ---------- */
+.icon-btn {
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: var(--bg); color: var(--ink-soft);
+  border-radius: 10px; cursor: pointer; transition: background 0.15s ease, color 0.15s ease;
+}
+.icon-btn svg { width: 17px; height: 17px; }
+.icon-btn:hover { background: var(--border); color: var(--navy-900); }
+.icon-btn.danger:hover { background: var(--danger-light); color: var(--danger); }
+
 .stack { display: flex; flex-direction: column; gap: 12px; }
 .center-text { text-align: center; }
 .muted { color: var(--ink-faint); }

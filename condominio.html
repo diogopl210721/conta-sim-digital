@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=3">
+<link rel="stylesheet" href="assets/css/style.css?v=4">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -87,6 +89,9 @@
     <div class="field"><label>CPF</label><input type="text" id="editCpf"></div>
     <div class="field"><label>E-mail</label><input type="email" id="editEmail"></div>
     <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
+    <div class="divider"></div>
+    <h3 style="font-size:16px;">Fotos capturadas (auditoria)</h3>
+    <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px;"></div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditar').style.display='none'">Cancelar</button>
       <button type="button" class="btn btn-primary" id="btnSalvarEdicao" onclick="salvarEdicao()">Salvar</button>
@@ -94,7 +99,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=3"></script>
+<script src="assets/js/supabase-client.js?v=4"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -297,7 +302,14 @@ async function carregarUnidades() {
       <td style="white-space:nowrap;">
         <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">Medidor</button>
         <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">Link</button>
-        <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${JSON.stringify({ id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto, morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "" })})'>Editar</button>
+        <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${JSON.stringify({
+          id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto,
+          morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "",
+          medidor_foto: medidor?.foto_url || null, medidor_capturado_em: medidor?.capturado_em || null,
+          medidor_lat: medidor?.latitude || null, medidor_lng: medidor?.longitude || null,
+          doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
+          validado_em: validacao?.validado_em || null,
+        })})'>Editar</button>
         <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
       </td>
     `;
@@ -317,7 +329,41 @@ function abrirEdicao(dados) {
   document.getElementById('editCpf').value = dados.cpf || '';
   document.getElementById('editEmail').value = dados.email || '';
   document.getElementById('editTelefone').value = dados.telefone || '';
+  renderizarFotosAuditoria(dados);
   document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function renderizarFotosAuditoria(dados) {
+  const container = document.getElementById('fotosAuditoria');
+  const itens = [
+    {
+      titulo: 'Medidor',
+      url: dados.medidor_foto,
+      detalhe: dados.medidor_capturado_em
+        ? `Capturado em ${new Date(dados.medidor_capturado_em).toLocaleString('pt-BR')}` +
+          (dados.medidor_lat ? ` · ${dados.medidor_lat.toFixed(5)}, ${dados.medidor_lng.toFixed(5)}` : '')
+        : null,
+    },
+    { titulo: 'Documento', url: dados.doc_foto, detalhe: null },
+    {
+      titulo: 'Selfie',
+      url: dados.selfie_foto,
+      detalhe: dados.validado_em ? `Validado em ${new Date(dados.validado_em).toLocaleString('pt-BR')}` : null,
+    },
+  ];
+
+  container.innerHTML = itens.map(item => `
+    <div style="text-align:center;">
+      <p style="font-size:12px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:6px;">${item.titulo}</p>
+      ${item.url
+        ? `<a href="${item.url}" target="_blank" rel="noopener">
+             <img src="${item.url}" style="width:100%; aspect-ratio:1; object-fit:cover; border-radius:10px; border:1px solid var(--border);">
+           </a>`
+        : `<div style="width:100%; aspect-ratio:1; border-radius:10px; background:var(--bg); border:1px dashed var(--border); display:flex; align-items:center; justify-content:center; color:var(--ink-faint); font-size:12px;">Não capturado</div>`
+      }
+      ${item.detalhe ? `<p style="font-size:11px; color:var(--ink-faint); margin-top:6px;">${item.detalhe}</p>` : ''}
+    </div>
+  `).join('');
 }
 
 async function salvarEdicao() {
