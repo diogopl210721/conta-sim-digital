@@ -382,6 +382,22 @@ table.data-table td { padding: 12px 8px; border-bottom: 1px solid var(--border);
 .status-tile .emoji { font-size: 16px; }
 .status-tile .rotulo { font-weight: 600; color: var(--navy-900); font-size: 13px; }
 
+.acoes-secundarias {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.acoes-secundarias .btn {
+  padding: 0 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 @media (max-width: 420px) {
   h1 { font-size: 24px; }
   .screen { padding: 20px 16px 28px; }
