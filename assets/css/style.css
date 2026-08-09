@@ -364,6 +364,24 @@ table.data-table td { padding: 12px 8px; border-bottom: 1px solid var(--border);
   .unidades-cards { display: none; }
 }
 
+/* Blocos de status clicáveis dentro do cartão mobile (Medidor / Verificação) */
+.status-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+.status-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s ease;
+}
+.status-tile:active { background: var(--bg); }
+.status-tile .topo { display: flex; align-items: center; gap: 6px; }
+.status-tile .emoji { font-size: 16px; }
+.status-tile .rotulo { font-weight: 600; color: var(--navy-900); font-size: 13px; }
+
 @media (max-width: 420px) {
   h1 { font-size: 24px; }
   .screen { padding: 20px 16px 28px; }

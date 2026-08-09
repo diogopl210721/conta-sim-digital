@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=13">
+<link rel="stylesheet" href="assets/css/style.css?v=14">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -105,7 +105,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=13"></script>
+<script src="assets/js/supabase-client.js?v=14"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -335,15 +335,21 @@ async function carregarUnidades() {
     card.innerHTML = `
       <strong style="font-size:16px;">${escapeHtml(identificacao)}</strong>
       <div class="muted" style="font-size:14px; margin-top:2px;">${escapeHtml(morador?.nome || 'Sem morador vinculado')}</div>
-      <div style="display:flex; flex-direction:column; gap:8px; margin:12px 0;">
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="muted" style="font-size:13px; width:88px; flex-shrink:0;">📷 Medidor</span>${statusMedidor}
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="muted" style="font-size:13px; width:88px; flex-shrink:0;">🪪 Verificação</span>${statusValidacao}
-        </div>
+      <div class="status-tiles">
+        <button class="status-tile" onclick="window.location.href='campo.html?unidade=${u.id}'">
+          <div class="topo"><span class="emoji">📷</span><span class="rotulo">Medidor</span></div>
+          ${statusMedidor}
+        </button>
+        <button class="status-tile" onclick='abrirEdicao(${dadosEdicao})'>
+          <div class="topo"><span class="emoji">🪪</span><span class="rotulo">Verificação</span></div>
+          ${statusValidacao}
+        </button>
       </div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border);">${acoes}</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; padding-top:6px; border-top:1px solid var(--border);">
+        <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">🔗 Link do morador</button>
+        <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${dadosEdicao})'>Editar</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
+      </div>
     `;
     listaMobile.appendChild(card);
   }
