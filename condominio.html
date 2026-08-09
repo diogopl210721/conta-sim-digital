@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=11">
+<link rel="stylesheet" href="assets/css/style.css?v=12">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -56,7 +56,8 @@
       <h2 style="margin:0;">Unidades</h2>
       <button class="btn btn-outline btn-sm" onclick="exportarExcel(this)">Exportar Excel</button>
     </div>
-    <div class="card" style="padding:0; overflow-x:auto;">
+    <!-- Lista de unidades: tabela em telas largas, cartões empilhados no celular -->
+    <div class="card unidades-table-wrap" style="padding:0; overflow-x:auto;">
       <table class="data-table" id="tabelaUnidades" style="min-width:600px;">
         <thead>
           <tr>
@@ -70,6 +71,7 @@
         <tbody id="corpoTabela"></tbody>
       </table>
     </div>
+    <div class="unidades-cards" id="listaUnidadesMobile"></div>
     <div id="vazioUnidades" class="empty-state" style="display:none;">
       <p>Nenhuma unidade cadastrada ainda. Importe a planilha do síndico acima.</p>
     </div>
@@ -103,7 +105,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=11"></script>
+<script src="assets/js/supabase-client.js?v=12"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -270,7 +272,9 @@ async function carregarUnidades() {
     .order('apto');
 
   const corpo = document.getElementById('corpoTabela');
+  const listaMobile = document.getElementById('listaUnidadesMobile');
   corpo.innerHTML = '';
+  listaMobile.innerHTML = '';
 
   if (!unidades || unidades.length === 0) {
     document.getElementById('vazioUnidades').style.display = 'block';
@@ -296,6 +300,23 @@ async function carregarUnidades() {
         ? `<span class="badge badge-warning">Dados confirmados</span>`
         : `<span class="badge badge-neutral">Aguardando</span>`;
 
+    const dadosEdicao = JSON.stringify({
+      id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto,
+      morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "",
+      medidor_foto: medidor?.foto_url || null, medidor_capturado_em: medidor?.capturado_em || null,
+      medidor_lat: medidor?.latitude || null, medidor_lng: medidor?.longitude || null,
+      doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
+      validado_em: validacao?.validado_em || null,
+    });
+
+    const acoes = `
+      <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">Medidor</button>
+      <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">Link</button>
+      <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${dadosEdicao})'>Editar</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
+    `;
+
+    // ---- Linha da tabela (desktop) ----
     const tr = document.createElement('tr');
     tr.dataset.unidadeId = u.id;
     tr.innerHTML = `
@@ -303,21 +324,21 @@ async function carregarUnidades() {
       <td>${escapeHtml(morador?.nome || '—')}</td>
       <td>${statusMedidor}</td>
       <td>${statusValidacao}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">Medidor</button>
-        <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">Link</button>
-        <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${JSON.stringify({
-          id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto,
-          morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "",
-          medidor_foto: medidor?.foto_url || null, medidor_capturado_em: medidor?.capturado_em || null,
-          medidor_lat: medidor?.latitude || null, medidor_lng: medidor?.longitude || null,
-          doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
-          validado_em: validacao?.validado_em || null,
-        })})'>Editar</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
-      </td>
+      <td style="white-space:nowrap;">${acoes}</td>
     `;
     corpo.appendChild(tr);
+
+    // ---- Cartão (mobile) ----
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.marginBottom = '10px';
+    card.innerHTML = `
+      <strong style="font-size:16px;">${escapeHtml(identificacao)}</strong>
+      <div class="muted" style="font-size:14px; margin-top:2px;">${escapeHtml(morador?.nome || 'Sem morador vinculado')}</div>
+      <div style="display:flex; gap:6px; margin:10px 0; flex-wrap:wrap;">${statusMedidor} ${statusValidacao}</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; padding-top:10px; border-top:1px solid var(--border);">${acoes}</div>
+    `;
+    listaMobile.appendChild(card);
   }
 }
 

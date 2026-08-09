@@ -356,6 +356,14 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: 15px; }
 table.data-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); padding: 10px 8px; border-bottom: 2px solid var(--border); }
 table.data-table td { padding: 12px 8px; border-bottom: 1px solid var(--border); }
 
+/* Lista de unidades: cartões no celular, tabela em telas largas */
+.unidades-table-wrap { display: none; }
+.unidades-cards { display: block; }
+@media (min-width: 700px) {
+  .unidades-table-wrap { display: block; }
+  .unidades-cards { display: none; }
+}
+
 @media (max-width: 420px) {
   h1 { font-size: 24px; }
   .screen { padding: 20px 16px 28px; }
