@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=21">
+<link rel="stylesheet" href="assets/css/style.css?v=22">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -152,7 +152,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=21"></script>
+<script src="assets/js/supabase-client.js?v=22"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -395,8 +395,29 @@ async function finalizar() {
       uploadFoto(selfieBase64, selfieMediaType, 'selfies'),
     ]);
 
+    // Verificação de identidade: nome do documento + comparação facial.
+    // Roda em paralelo com o salvamento; se falhar por qualquer motivo, não trava
+    // o cadastro do morador — vira apenas um sinal a menos para o consultor auditar.
+    let verificacao = {};
+    try {
+      const resp = await fetch('https://arffptuclrrzuzdrcmuc.supabase.co/functions/v1/csd-verificar-identidade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nome_cadastrado: document.getElementById('confNome').value.trim(),
+          doc_base64: docBase64, doc_media_type: docMediaType,
+          selfie_base64: selfieBase64, selfie_media_type: selfieMediaType,
+        }),
+      });
+      verificacao = await resp.json();
+    } catch (e) { /* segue sem verificação se a função falhar */ }
+
     const { error } = await sb.rpc('csd_rpc_finalizar_validacao', {
-      p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null, p_token: token
+      p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null, p_token: token,
+      p_nome_extraido: verificacao.nome_extraido || null,
+      p_nome_confere: verificacao.nome_confere ?? null,
+      p_similaridade_facial: verificacao.similaridade_facial ?? null,
+      p_facial_confere: verificacao.facial_confere ?? null,
     });
     if (error) throw error;
 

@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=21">
+<link rel="stylesheet" href="assets/css/style.css?v=22">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -97,7 +97,8 @@
     <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
     <div class="divider"></div>
     <h3 style="font-size:16px;">Fotos capturadas (auditoria)</h3>
-    <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px;"></div>
+    <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;"></div>
+    <div id="verificacaoIdentidade" style="display:none; margin-bottom:18px;"></div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditar').style.display='none'">Cancelar</button>
       <button type="button" class="btn btn-primary" id="btnSalvarEdicao" onclick="salvarEdicao()">Salvar</button>
@@ -105,7 +106,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=21"></script>
+<script src="assets/js/supabase-client.js?v=22"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -307,6 +308,8 @@ async function carregarUnidades() {
       medidor_lat: medidor?.latitude || null, medidor_lng: medidor?.longitude || null,
       doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
       validado_em: validacao?.validado_em || null,
+      nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
+      similaridade_facial: validacao?.similaridade_facial, facial_confere: validacao?.facial_confere,
     });
 
     const acoes = `
@@ -402,6 +405,30 @@ function renderizarFotosAuditoria(dados) {
       ${item.detalhe ? `<p style="font-size:11px; color:var(--ink-faint); margin-top:6px;">${item.detalhe}</p>` : ''}
     </div>
   `).join('');
+
+  // Resultado da verificação automática de identidade (nome + facial)
+  const boxVerificacao = document.getElementById('verificacaoIdentidade');
+  if (dados.doc_foto && dados.selfie_foto) {
+    const linhaNome = dados.nome_confere === null || dados.nome_confere === undefined
+      ? `<span class="badge badge-neutral">Não verificado</span>`
+      : dados.nome_confere
+        ? `<span class="badge badge-success">Confere</span>`
+        : `<span class="badge badge-danger">Não confere</span>`;
+    const linhaFacial = dados.similaridade_facial === null || dados.similaridade_facial === undefined
+      ? `<span class="badge badge-neutral">Não verificado</span>`
+      : dados.facial_confere
+        ? `<span class="badge badge-success">${dados.similaridade_facial}% de similaridade</span>`
+        : `<span class="badge badge-warning">${dados.similaridade_facial}% de similaridade</span>`;
+
+    boxVerificacao.style.display = 'block';
+    boxVerificacao.innerHTML = `
+      <div class="card-row"><span style="font-size:13px;">Nome do documento (${escapeAttr(dados.nome_extraido || '—')}) confere com o cadastro</span>${linhaNome}</div>
+      <div class="card-row"><span style="font-size:13px;">Selfie confere com a foto do documento</span>${linhaFacial}</div>
+    `;
+  } else {
+    boxVerificacao.style.display = 'none';
+    boxVerificacao.innerHTML = '';
+  }
 }
 
 async function salvarEdicao() {
