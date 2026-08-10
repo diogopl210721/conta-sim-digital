@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Conta Sim Digital — Consigaz</title>
-<link rel="stylesheet" href="assets/css/style.css?v=19">
+<link rel="stylesheet" href="assets/css/style.css?v=20">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background: var(--navy-900);">
@@ -85,7 +85,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=19"></script>
+<script src="assets/js/supabase-client.js?v=20"></script>
 <script>
 let tipoCadastro = 'consultor';
 
@@ -162,10 +162,25 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
     await sb.auth.signInWithPassword({ email, password: senha });
   }
 
+  // Confirma que a sessão está mesmo disponível antes de prosseguir (evita corrida
+  // entre o cadastro no Auth e a chamada seguinte, que depende do usuário autenticado)
+  let sessaoPronta = null;
+  for (let tentativa = 0; tentativa < 5 && !sessaoPronta; tentativa++) {
+    const { data: { session } } = await sb.auth.getSession();
+    sessaoPronta = session;
+    if (!sessaoPronta) await new Promise(r => setTimeout(r, 300));
+  }
+  if (!sessaoPronta) {
+    toast('Conta criada, mas a sessão demorou a iniciar. Tente fazer login normalmente.', 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+    return;
+  }
+
   if (tipoCadastro === 'consultor') {
     const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
     if (error || data?.erro) {
-      toast('Erro ao finalizar cadastro de consultor.', 'error');
+      toast('Erro ao finalizar cadastro: ' + (error?.message || data?.erro || 'desconhecido'), 'error');
       setBtnLoading(btn, false, 'Criar minha conta');
       return;
     }
@@ -173,7 +188,7 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
   } else {
     const { data, error } = await sb.rpc('csd_rpc_signup_ajudante', { p_codigo: codigo, p_nome: nome });
     if (error || data?.erro === 'codigo_invalido') {
-      toast('Código de convite inválido.', 'error');
+      toast('Erro: ' + (error?.message || 'código de convite inválido'), 'error');
       setBtnLoading(btn, false, 'Criar minha conta');
       return;
     }
