@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Conta Sim Digital — Consigaz</title>
-<link rel="stylesheet" href="assets/css/style.css?v=18">
+<link rel="stylesheet" href="assets/css/style.css?v=19">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background: var(--navy-900);">
@@ -72,6 +72,10 @@
           <input type="password" id="cadSenha" required minlength="6" autocomplete="new-password">
           <div class="hint">Mínimo de 6 caracteres.</div>
         </div>
+        <div class="field">
+          <label for="cadConfirmarSenha">Confirmar senha</label>
+          <input type="password" id="cadConfirmarSenha" required minlength="6" autocomplete="new-password">
+        </div>
         <button type="submit" class="btn btn-primary btn-block" id="btnCadastro">Criar minha conta</button>
       </form>
     </div>
@@ -81,7 +85,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=18"></script>
+<script src="assets/js/supabase-client.js?v=19"></script>
 <script>
 let tipoCadastro = 'consultor';
 
@@ -130,8 +134,15 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
   const nome = document.getElementById('cadNome').value.trim();
   const email = document.getElementById('cadEmail').value.trim();
   const senha = document.getElementById('cadSenha').value;
+  const confirmarSenha = document.getElementById('cadConfirmarSenha').value;
   const telefone = document.getElementById('cadTelefone').value.trim();
   const codigo = document.getElementById('cadCodigo').value.trim();
+
+  if (senha !== confirmarSenha) {
+    toast('As senhas não são iguais. Confira e tente de novo.', 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    return;
+  }
 
   if (tipoCadastro === 'ajudante' && !codigo) {
     toast('Informe o código de convite do consultor.', 'error');
