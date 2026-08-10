@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=23">
+<link rel="stylesheet" href="assets/css/style.css?v=24">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -113,7 +113,9 @@
         <img id="previewDoc" style="display:none;">
       </div>
       <input type="file" id="inputDoc" accept="image/*" capture="environment" style="display:none;">
-      <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">Tirar foto do documento</button>
+      <input type="file" id="inputDocGaleria" accept="image/*" style="display:none;">
+      <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">📷 Tirar foto do documento</button>
+      <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="irParaSelfie()" disabled>Continuar</button>
     </div>
@@ -135,7 +137,9 @@
         <img id="previewSelfie" style="display:none;">
       </div>
       <input type="file" id="inputSelfie" accept="image/*" capture="user" style="display:none;">
-      <button class="btn btn-secondary btn-block" id="btnAbrirCameraSelfie" onclick="abrirCamera('Selfie')" style="margin-bottom:10px;">Tirar selfie</button>
+      <input type="file" id="inputSelfieGaleria" accept="image/*" style="display:none;">
+      <button class="btn btn-secondary btn-block" id="btnAbrirCameraSelfie" onclick="abrirCamera('Selfie')" style="margin-bottom:10px;">🤳 Tirar selfie</button>
+      <button class="btn btn-outline btn-block" id="btnGaleriaSelfie" onclick="document.getElementById('inputSelfieGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerSelfie" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Selfie')">Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnFinalizar" onclick="finalizar()" disabled>Concluir cadastro</button>
     </div>
@@ -152,7 +156,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=23"></script>
+<script src="assets/js/supabase-client.js?v=24"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -299,7 +303,9 @@ async function salvarConfirmacao() {
 }
 
 document.getElementById('inputDoc').addEventListener('change', (e) => lerFoto(e, 'Doc'));
+document.getElementById('inputDocGaleria').addEventListener('change', (e) => lerFoto(e, 'Doc'));
 document.getElementById('inputSelfie').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
+document.getElementById('inputSelfieGaleria').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
 
 const streamsAtivos = {};
 
@@ -320,6 +326,7 @@ async function abrirCamera(tipo) {
     document.getElementById('guia' + tipo).style.display = 'flex';
     document.getElementById('btnCapturar' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
+    document.getElementById('btnGaleria' + tipo).style.display = 'none';
     document.getElementById('btnRefazer' + tipo).style.display = 'none';
   } catch (err) {
     // Permissão negada ou câmera indisponível: volta pro seletor nativo do sistema
@@ -370,6 +377,7 @@ function lerFoto(e, tipo) {
     document.getElementById('placeholder' + tipo).style.display = 'none';
     document.getElementById('btnRefazer' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
+    document.getElementById('btnGaleria' + tipo).style.display = 'none';
     document.getElementById('btn' + (tipo === 'Doc' ? 'ContinuarDoc' : 'Finalizar')).disabled = false;
   };
   reader.readAsDataURL(file);
