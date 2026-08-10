@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=22">
+<link rel="stylesheet" href="assets/css/style.css?v=23">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -152,7 +152,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=22"></script>
+<script src="assets/js/supabase-client.js?v=23"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -416,8 +416,9 @@ async function finalizar() {
       p_morador_id: moradorId, p_foto_documento_url: docUrl, p_foto_selfie_url: selfieUrl, p_ip: null, p_token: token,
       p_nome_extraido: verificacao.nome_extraido || null,
       p_nome_confere: verificacao.nome_confere ?? null,
-      p_similaridade_facial: verificacao.similaridade_facial ?? null,
-      p_facial_confere: verificacao.facial_confere ?? null,
+      p_facial_avaliacao: verificacao.facial_avaliacao || null,
+      p_facial_observacao: verificacao.facial_observacao || null,
+      p_metodo_verificacao_facial: verificacao.metodo_verificacao_facial || null,
     });
     if (error) throw error;
 

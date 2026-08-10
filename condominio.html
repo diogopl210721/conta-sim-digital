@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=22">
+<link rel="stylesheet" href="assets/css/style.css?v=23">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -106,7 +106,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=22"></script>
+<script src="assets/js/supabase-client.js?v=23"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -309,7 +309,7 @@ async function carregarUnidades() {
       doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
       validado_em: validacao?.validado_em || null,
       nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
-      similaridade_facial: validacao?.similaridade_facial, facial_confere: validacao?.facial_confere,
+      facial_avaliacao: validacao?.facial_avaliacao || null, facial_observacao: validacao?.facial_observacao || null,
     });
 
     const acoes = `
@@ -406,7 +406,7 @@ function renderizarFotosAuditoria(dados) {
     </div>
   `).join('');
 
-  // Resultado da verificação automática de identidade (nome + facial)
+  // Resultado da verificação automática de identidade (nome + avaliação facial)
   const boxVerificacao = document.getElementById('verificacaoIdentidade');
   if (dados.doc_foto && dados.selfie_foto) {
     const linhaNome = dados.nome_confere === null || dados.nome_confere === undefined
@@ -414,16 +414,20 @@ function renderizarFotosAuditoria(dados) {
       : dados.nome_confere
         ? `<span class="badge badge-success">Confere</span>`
         : `<span class="badge badge-danger">Não confere</span>`;
-    const linhaFacial = dados.similaridade_facial === null || dados.similaridade_facial === undefined
-      ? `<span class="badge badge-neutral">Não verificado</span>`
-      : dados.facial_confere
-        ? `<span class="badge badge-success">${dados.similaridade_facial}% de similaridade</span>`
-        : `<span class="badge badge-warning">${dados.similaridade_facial}% de similaridade</span>`;
+
+    const rotulosFacial = {
+      mesma_pessoa: `<span class="badge badge-success">Parece a mesma pessoa</span>`,
+      pessoas_diferentes: `<span class="badge badge-danger">Parece pessoa diferente</span>`,
+      inconclusivo: `<span class="badge badge-neutral">Inconclusivo</span>`,
+    };
+    const linhaFacial = rotulosFacial[dados.facial_avaliacao] || `<span class="badge badge-neutral">Não verificado</span>`;
 
     boxVerificacao.style.display = 'block';
     boxVerificacao.innerHTML = `
       <div class="card-row"><span style="font-size:13px;">Nome do documento (${escapeAttr(dados.nome_extraido || '—')}) confere com o cadastro</span>${linhaNome}</div>
-      <div class="card-row"><span style="font-size:13px;">Selfie confere com a foto do documento</span>${linhaFacial}</div>
+      <div class="card-row"><span style="font-size:13px;">Rosto da selfie x documento</span>${linhaFacial}</div>
+      ${dados.facial_observacao ? `<p class="muted" style="font-size:12px; margin:6px 0 0;">"${escapeHtml(dados.facial_observacao)}"</p>` : ''}
+      <p class="muted" style="font-size:11px; margin:8px 0 0;">⚠️ Avaliação por IA — não é reconhecimento facial biométrico certificado. Use como sinal de apoio, não como prova definitiva.</p>
     `;
   } else {
     boxVerificacao.style.display = 'none';
