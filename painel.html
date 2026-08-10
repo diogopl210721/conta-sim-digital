@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=17">
+<link rel="stylesheet" href="assets/css/style.css?v=18">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -62,6 +62,17 @@
         <label for="novoEndereco">Endereço</label>
         <input type="text" id="novoEndereco">
       </div>
+      <div style="display:flex; gap:10px;">
+        <div class="field" style="flex:1;">
+          <label for="novoCidade">Cidade</label>
+          <input type="text" id="novoCidade">
+        </div>
+        <div class="field" style="flex:1;">
+          <label for="novoCodigoEdificio">Código do edifício</label>
+          <input type="text" id="novoCodigoEdificio">
+          <div class="hint">Opcional</div>
+        </div>
+      </div>
       <div class="field">
         <label for="novoEstrutura">Estrutura do edifício</label>
         <select id="novoEstrutura">
@@ -90,6 +101,17 @@
       <label for="editEnderecoCondominio">Endereço</label>
       <input type="text" id="editEnderecoCondominio">
     </div>
+    <div style="display:flex; gap:10px;">
+      <div class="field" style="flex:1;">
+        <label for="editCidadeCondominio">Cidade</label>
+        <input type="text" id="editCidadeCondominio">
+      </div>
+      <div class="field" style="flex:1;">
+        <label for="editCodigoEdificioCondominio">Código do edifício</label>
+        <input type="text" id="editCodigoEdificioCondominio">
+        <div class="hint">Opcional</div>
+      </div>
+    </div>
     <div class="field">
       <label for="editEstruturaCondominio">Estrutura do edifício</label>
       <select id="editEstruturaCondominio">
@@ -104,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=17"></script>
+<script src="assets/js/supabase-client.js?v=18"></script>
 <script>
 let perfilAtual = null;
 
@@ -219,6 +241,8 @@ function abrirEdicaoCondominio(c) {
   condominioEmEdicao = c;
   document.getElementById('editNomeCondominio').value = c.nome || '';
   document.getElementById('editEnderecoCondominio').value = c.endereco || '';
+  document.getElementById('editCidadeCondominio').value = c.cidade || '';
+  document.getElementById('editCodigoEdificioCondominio').value = c.codigo_edificio || '';
   document.getElementById('editEstruturaCondominio').value = c.estrutura;
   document.getElementById('modalEditarCondominio').style.display = 'flex';
 }
@@ -229,10 +253,12 @@ async function salvarEdicaoCondominio() {
 
   const nome = document.getElementById('editNomeCondominio').value.trim();
   const endereco = document.getElementById('editEnderecoCondominio').value.trim();
+  const cidade = document.getElementById('editCidadeCondominio').value.trim();
+  const codigo_edificio = document.getElementById('editCodigoEdificioCondominio').value.trim();
   const estrutura = document.getElementById('editEstruturaCondominio').value;
 
   const { error } = await sb.from('csd_condominios')
-    .update({ nome, endereco, estrutura })
+    .update({ nome, endereco, cidade, codigo_edificio, estrutura })
     .eq('id', condominioEmEdicao.id);
 
   setBtnLoading(btn, false, 'Salvar');
@@ -266,10 +292,12 @@ document.getElementById('formNovoCondominio').addEventListener('submit', async (
 
   const nome = document.getElementById('novoNome').value.trim();
   const endereco = document.getElementById('novoEndereco').value.trim();
+  const cidade = document.getElementById('novoCidade').value.trim();
+  const codigo_edificio = document.getElementById('novoCodigoEdificio').value.trim();
   const estrutura = document.getElementById('novoEstrutura').value;
 
   const { data, error } = await sb.from('csd_condominios')
-    .insert({ nome, endereco, estrutura, consultor_id: perfilAtual.id })
+    .insert({ nome, endereco, cidade, codigo_edificio, estrutura, consultor_id: perfilAtual.id })
     .select().single();
 
   setBtnLoading(btn, false, 'Criar');
