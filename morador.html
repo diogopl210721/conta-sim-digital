@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=24">
+<link rel="stylesheet" href="assets/css/style.css?v=25">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -117,7 +117,8 @@
       <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">📷 Tirar foto do documento</button>
       <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
-      <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="irParaSelfie()" disabled>Continuar</button>
+      <p id="avisoNomeDoc" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:10px 14px; border-radius:10px; margin-bottom:12px;"></p>
+      <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="continuarAposDocumento()" disabled>Continuar</button>
     </div>
 
     <!-- ETAPA: selfie -->
@@ -156,7 +157,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=24"></script>
+<script src="assets/js/supabase-client.js?v=25"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -167,6 +168,7 @@ let identificacaoUnidade = null;
 let moradorId = null;
 let docBase64 = null, docMediaType = null;
 let selfieBase64 = null, selfieMediaType = null;
+let verificacaoNome = {};
 
 const ETAPAS = ['carregando','localizar','cpf','cadastroZero','confirmar','documento','selfie','concluido','jaConcluido'];
 function mostrarEtapa(nome, passoVisual) {
@@ -310,6 +312,7 @@ document.getElementById('inputSelfieGaleria').addEventListener('change', (e) => 
 const streamsAtivos = {};
 
 async function abrirCamera(tipo) {
+  if (tipo === 'Doc') document.getElementById('avisoNomeDoc').style.display = 'none';
   const facing = tipo === 'Doc' ? 'environment' : 'user';
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -366,6 +369,7 @@ function capturarFoto(tipo) {
 function lerFoto(e, tipo) {
   const file = e.target.files[0];
   if (!file) return;
+  if (tipo === 'Doc') document.getElementById('avisoNomeDoc').style.display = 'none';
   const reader = new FileReader();
   reader.onload = () => {
     const dataUrl = reader.result;
@@ -384,6 +388,40 @@ function lerFoto(e, tipo) {
 }
 
 function irParaSelfie() { pararCamera('Doc'); mostrarEtapa('selfie', 4); }
+
+async function continuarAposDocumento() {
+  const btn = document.getElementById('btnContinuarDoc');
+  setBtnLoading(btn, true);
+
+  try {
+    const resp = await fetch('https://arffptuclrrzuzdrcmuc.supabase.co/functions/v1/csd-verificar-identidade', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome_cadastrado: document.getElementById('confNome').value.trim(),
+        doc_base64: docBase64, doc_media_type: docMediaType,
+      }),
+    });
+    verificacaoNome = await resp.json();
+  } catch (e) {
+    verificacaoNome = {};
+  }
+
+  setBtnLoading(btn, false, 'Continuar');
+
+  // Só bloqueia quando a IA conseguiu ler um nome e ele realmente não bate.
+  // Se não conseguiu ler nada (foto ruim, documento diferente), deixa seguir
+  // para não travar morador legítimo por causa de OCR falho.
+  if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere === false) {
+    document.getElementById('avisoNomeDoc').style.display = 'block';
+    document.getElementById('avisoNomeDoc').textContent =
+      `O nome lido no documento ("${verificacaoNome.nome_extraido}") não confere com o nome cadastrado ("${document.getElementById('confNome').value.trim()}"). Tire a foto novamente, bem legível, ou confira se digitou seu nome certo na etapa anterior.`;
+    return;
+  }
+
+  document.getElementById('avisoNomeDoc').style.display = 'none';
+  irParaSelfie();
+}
 
 async function uploadFoto(base64, mediaType, prefixo) {
   const nomeArquivo = `${prefixo}/${moradorId}-${Date.now()}.jpg`;
