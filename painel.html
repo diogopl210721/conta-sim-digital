@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=16">
+<link rel="stylesheet" href="assets/css/style.css?v=17">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -104,7 +104,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=16"></script>
+<script src="assets/js/supabase-client.js?v=17"></script>
 <script>
 let perfilAtual = null;
 
@@ -151,10 +151,9 @@ async function carregarCondominios() {
     card.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
         <div class="area-clicavel" style="cursor:pointer; flex:1; min-width:0;">
-          <h3 style="margin-bottom:4px;">${escapeHtml(c.nome)}</h3>
-          <p class="muted" style="margin:0; font-size:14px;">${escapeHtml(c.endereco || 'Endereço não informado')}</p>
+          <h3 style="margin:0;">${escapeHtml(c.nome)}</h3>
         </div>
-        <span class="badge badge-neutral" id="pct-${c.id}" style="flex-shrink:0;">…</span>
+        <div id="pct-${c.id}" style="flex-shrink:0;"></div>
         <div style="display:flex; gap:4px; flex-shrink:0;">
           <button class="icon-btn" data-acao="editar" title="Editar" aria-label="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -173,9 +172,26 @@ async function carregarCondominios() {
   }
 }
 
+function circuloProgresso(pct) {
+  const r = 17, circ = 2 * Math.PI * r;
+  const offset = circ - (circ * pct / 100);
+  const cor = pct === 100 ? '#16A34A' : pct === 0 ? '#DCE1EA' : '#FF5630';
+  return `
+    <div style="position:relative; width:46px; height:46px;">
+      <svg width="46" height="46" viewBox="0 0 46 46">
+        <circle cx="23" cy="23" r="${r}" fill="none" stroke="#E2E6EC" stroke-width="4"></circle>
+        <circle cx="23" cy="23" r="${r}" fill="none" stroke="${cor}" stroke-width="4" stroke-linecap="round"
+          stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 23 23)"
+          style="transition: stroke-dashoffset 0.4s ease;"></circle>
+      </svg>
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--navy-900);">${pct}%</div>
+    </div>
+  `;
+}
+
 async function carregarPercentualConcluido(condominioId) {
-  const badge = document.getElementById('pct-' + condominioId);
-  if (!badge) return;
+  const container = document.getElementById('pct-' + condominioId);
+  if (!container) return;
 
   const { data: unidades } = await sb.from('csd_unidades')
     .select('id, csd_medidores(id), csd_moradores(id, csd_validacoes(status))')
@@ -183,7 +199,7 @@ async function carregarPercentualConcluido(condominioId) {
 
   const total = (unidades || []).length;
   if (total === 0) {
-    badge.textContent = 'Sem unidades';
+    container.innerHTML = circuloProgresso(0);
     return;
   }
 
@@ -194,8 +210,7 @@ async function carregarPercentualConcluido(condominioId) {
   }).length;
 
   const pct = Math.round((completas / total) * 100);
-  badge.textContent = `${pct}% concluído`;
-  badge.className = 'badge ' + (pct === 100 ? 'badge-success' : pct === 0 ? 'badge-neutral' : 'badge-warning');
+  container.innerHTML = circuloProgresso(pct);
 }
 
 let condominioEmEdicao = null;
