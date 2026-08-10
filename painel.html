@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=15">
+<link rel="stylesheet" href="assets/css/style.css?v=16">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -104,7 +104,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=15"></script>
+<script src="assets/js/supabase-client.js?v=16"></script>
 <script>
 let perfilAtual = null;
 
@@ -149,11 +149,12 @@ async function carregarCondominios() {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
-        <div class="area-clicavel" style="cursor:pointer; flex:1;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+        <div class="area-clicavel" style="cursor:pointer; flex:1; min-width:0;">
           <h3 style="margin-bottom:4px;">${escapeHtml(c.nome)}</h3>
           <p class="muted" style="margin:0; font-size:14px;">${escapeHtml(c.endereco || 'Endereço não informado')}</p>
         </div>
+        <span class="badge badge-neutral" id="pct-${c.id}" style="flex-shrink:0;">…</span>
         <div style="display:flex; gap:4px; flex-shrink:0;">
           <button class="icon-btn" data-acao="editar" title="Editar" aria-label="Editar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
@@ -168,7 +169,33 @@ async function carregarCondominios() {
     card.querySelector('[data-acao="editar"]').onclick = () => abrirEdicaoCondominio(c);
     card.querySelector('[data-acao="excluir"]').onclick = () => excluirCondominio(c.id, c.nome);
     lista.appendChild(card);
+    carregarPercentualConcluido(c.id);
   }
+}
+
+async function carregarPercentualConcluido(condominioId) {
+  const badge = document.getElementById('pct-' + condominioId);
+  if (!badge) return;
+
+  const { data: unidades } = await sb.from('csd_unidades')
+    .select('id, csd_medidores(id), csd_moradores(id, csd_validacoes(status))')
+    .eq('condominio_id', condominioId);
+
+  const total = (unidades || []).length;
+  if (total === 0) {
+    badge.textContent = 'Sem unidades';
+    return;
+  }
+
+  const completas = unidades.filter(u => {
+    const temMedidor = (u.csd_medidores || []).length > 0;
+    const temValidacao = (u.csd_moradores || []).some(m => (m.csd_validacoes || []).some(v => v.status === 'validado'));
+    return temMedidor && temValidacao;
+  }).length;
+
+  const pct = Math.round((completas / total) * 100);
+  badge.textContent = `${pct}% concluído`;
+  badge.className = 'badge ' + (pct === 100 ? 'badge-success' : pct === 0 ? 'badge-neutral' : 'badge-warning');
 }
 
 let condominioEmEdicao = null;
