@@ -22,7 +22,7 @@ function setBtnLoading(btn, loading, labelWhenDone) {
   if (loading) {
     btn.dataset.originalLabel = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
+    btn.innerHTML = '<span class="spinner"></span> Processando...';
   } else {
     btn.disabled = false;
     btn.innerHTML = labelWhenDone || btn.dataset.originalLabel || btn.innerHTML;
