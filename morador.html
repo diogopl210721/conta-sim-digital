@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=36">
+<link rel="stylesheet" href="assets/css/style.css?v=37">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -122,6 +122,10 @@
       <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria (foto ou PDF)</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
       <p id="avisoNomeDoc" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:10px 14px; border-radius:10px; margin-bottom:12px;"></p>
+      <div id="confirmacaoDocOk" style="display:none; background:var(--success-light); border-radius:12px; padding:14px; margin-bottom:16px; text-align:center;">
+        <p id="textoConfirmacaoDoc" style="margin:0 0 12px; color:var(--success); font-weight:700; font-size:14px;">✓ Documento validado</p>
+        <button class="btn btn-primary btn-block" onclick="irParaSelfie()">Continuar para selfie →</button>
+      </div>
       <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="continuarAposDocumento()" disabled>Continuar</button>
     </div>
 
@@ -175,7 +179,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=36"></script>
+<script src="assets/js/supabase-client.js?v=37"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -329,7 +333,11 @@ document.getElementById('inputSelfie').addEventListener('change', (e) => lerFoto
 const streamsAtivos = {};
 
 async function abrirCamera(tipo) {
-  if (tipo === 'Doc') document.getElementById('avisoNomeDoc').style.display = 'none';
+  if (tipo === 'Doc') {
+    document.getElementById('avisoNomeDoc').style.display = 'none';
+    document.getElementById('confirmacaoDocOk').style.display = 'none';
+    document.getElementById('btnContinuarDoc').style.display = 'block';
+  }
   const facing = tipo === 'Doc' ? 'environment' : 'user';
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -514,7 +522,11 @@ function capturarFoto(tipo) {
 function lerFoto(e, tipo) {
   const file = e.target.files[0];
   if (!file) return;
-  if (tipo === 'Doc') document.getElementById('avisoNomeDoc').style.display = 'none';
+  if (tipo === 'Doc') {
+    document.getElementById('avisoNomeDoc').style.display = 'none';
+    document.getElementById('confirmacaoDocOk').style.display = 'none';
+    document.getElementById('btnContinuarDoc').style.display = 'block';
+  }
 
   const ehPdf = file.type === 'application/pdf';
   const reader = new FileReader();
@@ -575,6 +587,17 @@ async function continuarAposDocumento() {
   }
 
   document.getElementById('avisoNomeDoc').style.display = 'none';
+
+  // Mostra confirmação visual em vez de avançar direto — a pessoa confere e
+  // decide quando seguir para a próxima etapa
+  const textoConfirmacao = document.getElementById('textoConfirmacaoDoc');
+  if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere) {
+    textoConfirmacao.textContent = `✓ Documento validado — nome "${verificacaoNome.nome_extraido}" confere com o cadastro`;
+  } else {
+    textoConfirmacao.textContent = '✓ Documento recebido — pronto para continuar';
+  }
+  document.getElementById('confirmacaoDocOk').style.display = 'block';
+  document.getElementById('btnContinuarDoc').style.display = 'none';
   irParaSelfie();
 }
 
