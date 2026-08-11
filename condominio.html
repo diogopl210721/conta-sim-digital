@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=32">
+<link rel="stylesheet" href="assets/css/style.css?v=33">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -97,6 +97,7 @@
     <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;"></div>
     <div id="verificacaoIdentidade" style="display:none; margin-bottom:18px;"></div>
     <div id="acaoLiberarNovoEnvio" style="display:none; margin-bottom:18px;"></div>
+    <div id="historicoCapturas" style="display:none; margin-bottom:18px;"></div>
     <div id="historicoAlteracoes" style="display:none; margin-bottom:18px;"></div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditar').style.display='none'">Cancelar</button>
@@ -105,7 +106,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=32"></script>
+<script src="assets/js/supabase-client.js?v=33"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -335,6 +336,13 @@ async function carregarUnidades() {
       nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
       facial_avaliacao: validacao?.facial_avaliacao || null, facial_observacao: validacao?.facial_observacao || null,
       ja_validado: validacao?.status === 'validado', permitir_novo_envio: u.permitir_novo_envio || false,
+      medidores_historico: (u.csd_medidores || []).map(m => ({
+        numero_serie: m.numero_serie, leitura_m3: m.leitura_m3, foto_url: m.foto_url, capturado_em: m.capturado_em || m.criado_em,
+      })).sort((a, b) => new Date(b.capturado_em) - new Date(a.capturado_em)),
+      validacoes_historico: (morador?.csd_validacoes || []).map(v => ({
+        foto_documento_url: v.foto_documento_url, foto_selfie_url: v.foto_selfie_url, status: v.status,
+        validado_em: v.validado_em || v.criado_em, nome_confere: v.nome_confere, facial_avaliacao: v.facial_avaliacao,
+      })).sort((a, b) => new Date(b.validado_em) - new Date(a.validado_em)),
     });
 
     const acoes = `
@@ -406,8 +414,62 @@ function abrirEdicao(dados) {
   document.getElementById('editTelefone').value = dados.telefone || '';
   renderizarFotosAuditoria(dados);
   renderizarLiberarNovoEnvio(dados);
+  renderizarHistoricoCapturas(dados);
   carregarHistoricoAlteracoes(dados.id);
   document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function renderizarHistoricoCapturas(dados) {
+  const box = document.getElementById('historicoCapturas');
+  const totalMedidores = (dados.medidores_historico || []).length;
+  const totalValidacoes = (dados.validacoes_historico || []).length;
+
+  if (totalMedidores <= 1 && totalValidacoes <= 1) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+    return;
+  }
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('listaHistoricoCapturas').style.display = document.getElementById('listaHistoricoCapturas').style.display === 'none' ? 'block' : 'none'">
+      📜 Ver capturas anteriores (${totalMedidores} medição${totalMedidores !== 1 ? 'ões' : ''}, ${totalValidacoes} verificaç${totalValidacoes !== 1 ? 'ões' : 'ão'})
+    </button>
+    <div id="listaHistoricoCapturas" style="display:none; margin-top:12px;">
+      ${totalMedidores > 1 ? `
+        <p style="font-size:12px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; margin-bottom:8px;">Medições anteriores</p>
+        <div class="stack" style="margin-bottom:16px;">
+          ${dados.medidores_historico.map((m, i) => `
+            <div class="card-row">
+              <div style="display:flex; align-items:center; gap:10px;">
+                ${m.foto_url ? `<a href="${m.foto_url}" target="_blank" rel="noopener"><img src="${m.foto_url}" style="width:44px; height:44px; object-fit:cover; border-radius:8px;"></a>` : ''}
+                <div>
+                  <span style="font-size:13px; font-weight:600; color:var(--navy-900);">${m.leitura_m3 ?? '—'} m³</span>
+                  <span class="muted" style="font-size:11px; display:block;">${m.capturado_em ? new Date(m.capturado_em).toLocaleString('pt-BR') : ''}</span>
+                </div>
+              </div>
+              ${i === 0 ? '<span class="badge badge-success">Atual</span>' : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+      ${totalValidacoes > 1 ? `
+        <p style="font-size:12px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; margin-bottom:8px;">Verificações anteriores</p>
+        <div class="stack">
+          ${dados.validacoes_historico.map((v, i) => `
+            <div class="card-row">
+              <div style="display:flex; align-items:center; gap:8px;">
+                ${v.foto_documento_url ? `<a href="${v.foto_documento_url}" target="_blank" rel="noopener"><img src="${v.foto_documento_url}" style="width:36px; height:36px; object-fit:cover; border-radius:6px;"></a>` : ''}
+                ${v.foto_selfie_url ? `<a href="${v.foto_selfie_url}" target="_blank" rel="noopener"><img src="${v.foto_selfie_url}" style="width:36px; height:36px; object-fit:cover; border-radius:6px;"></a>` : ''}
+                <span class="muted" style="font-size:11px;">${v.validado_em ? new Date(v.validado_em).toLocaleString('pt-BR') : ''}</span>
+              </div>
+              ${i === 0 ? '<span class="badge badge-success">Atual</span>' : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+  `;
 }
 
 function renderizarLiberarNovoEnvio(dados) {

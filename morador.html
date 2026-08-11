@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=32">
+<link rel="stylesheet" href="assets/css/style.css?v=33">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -128,7 +128,7 @@
     <!-- ETAPA: selfie -->
     <div id="etapaSelfie" style="display:none;">
       <h2>Agora, uma selfie</h2>
-      <p>Isso confirma que é você mesmo concluindo o cadastro.</p>
+      <p>Isso confirma que é você mesmo concluindo o cadastro — precisa ser ao vivo, pela câmera.</p>
       <div class="photo-frame" id="frameSelfie">
         <div class="placeholder" id="placeholderSelfie">
           <div style="font-size:32px; margin-bottom:8px;">🙂</div>
@@ -136,15 +136,17 @@
         </div>
         <video id="videoSelfie" playsinline autoplay muted style="display:none;"></video>
         <div class="camera-guide face" id="guiaSelfie" style="display:none;">
-          <span class="dica">Encaixe seu rosto no oval</span>
+          <span class="dica" id="dicaLiveness">Encaixe seu rosto no oval e pisque ou balance a cabeça levemente</span>
+        </div>
+        <div id="anelLiveness" style="display:none; position:absolute; top:14px; left:50%; transform:translateX(-50%); background:rgba(11,41,71,0.85); color:#fff; padding:6px 14px; border-radius:999px; font-size:12px; font-weight:600; display:flex; align-items:center; gap:8px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:#FF5630; display:inline-block; animation:pulse 1s ease-in-out infinite;"></span>
+          Aguardando movimento...
         </div>
         <button class="camera-capture-btn" id="btnCapturarSelfie" style="display:none;" onclick="capturarFoto('Selfie')"></button>
         <img id="previewSelfie" style="display:none;">
       </div>
       <input type="file" id="inputSelfie" accept="image/*" capture="user" style="display:none;">
-      <input type="file" id="inputSelfieGaleria" accept="image/*" style="display:none;">
       <button class="btn btn-secondary btn-block" id="btnAbrirCameraSelfie" onclick="abrirCamera('Selfie')" style="margin-bottom:10px;">🤳 Tirar selfie</button>
-      <button class="btn btn-outline btn-block" id="btnGaleriaSelfie" onclick="document.getElementById('inputSelfieGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerSelfie" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Selfie')">Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnFinalizar" onclick="finalizar()" disabled>Concluir cadastro</button>
     </div>
@@ -176,7 +178,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=32"></script>
+<script src="assets/js/supabase-client.js?v=33"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -326,7 +328,6 @@ async function salvarConfirmacao() {
 document.getElementById('inputDoc').addEventListener('change', (e) => lerFoto(e, 'Doc'));
 document.getElementById('inputDocGaleria').addEventListener('change', (e) => lerFoto(e, 'Doc'));
 document.getElementById('inputSelfie').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
-document.getElementById('inputSelfieGaleria').addEventListener('change', (e) => lerFoto(e, 'Selfie'));
 
 const streamsAtivos = {};
 
@@ -347,14 +348,84 @@ async function abrirCamera(tipo) {
     document.getElementById('preview' + tipo).style.display = 'none';
     if (tipo === 'Doc') document.getElementById('previewDocPdf').style.display = 'none';
     document.getElementById('guia' + tipo).style.display = 'flex';
-    document.getElementById('btnCapturar' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
-    document.getElementById('btnGaleria' + tipo).style.display = 'none';
+    document.getElementById('btnGaleria' + tipo)?.style.setProperty('display', 'none');
     document.getElementById('btnRefazer' + tipo).style.display = 'none';
+
+    if (tipo === 'Selfie') {
+      // Selfie exige prova de vida: câmera fica esperando movimento natural do
+      // rosto (piscar, virar a cabeça) e captura sozinha — não mostra botão manual
+      // de cara, pra não permitir simplesmente segurar uma foto na frente da câmera.
+      document.getElementById('btnCapturarSelfie').style.display = 'none';
+      iniciarDeteccaoMovimento();
+    } else {
+      document.getElementById('btnCapturar' + tipo).style.display = 'block';
+    }
   } catch (err) {
     // Permissão negada ou câmera indisponível: volta pro seletor nativo do sistema
     document.getElementById('input' + tipo).click();
   }
+}
+
+// ---------- Prova de vida (selfie): detecta movimento real comparando quadros ----------
+let livenessTimer = null;
+let livenessQuadroAnterior = null;
+let livenessScore = 0;
+let livenessInicioMs = 0;
+const LIVENESS_CANVAS = document.createElement('canvas');
+LIVENESS_CANVAS.width = 32;
+LIVENESS_CANVAS.height = 32;
+const LIVENESS_CTX = LIVENESS_CANVAS.getContext('2d', { willReadFrequently: true });
+
+function iniciarDeteccaoMovimento() {
+  const video = document.getElementById('videoSelfie');
+  livenessQuadroAnterior = null;
+  livenessScore = 0;
+  livenessInicioMs = Date.now();
+  document.getElementById('anelLiveness').style.display = 'flex';
+  document.getElementById('dicaLiveness').textContent = 'Encaixe seu rosto no oval e pisque ou balance a cabeça levemente';
+
+  livenessTimer = setInterval(() => {
+    if (!video.videoWidth) return;
+
+    LIVENESS_CTX.drawImage(video, 0, 0, 32, 32);
+    const quadroAtual = LIVENESS_CTX.getImageData(0, 0, 32, 32).data;
+
+    if (livenessQuadroAnterior) {
+      let diferenca = 0;
+      for (let i = 0; i < quadroAtual.length; i += 4) {
+        diferenca += Math.abs(quadroAtual[i] - livenessQuadroAnterior[i]);
+      }
+      const diferencaMedia = diferenca / (32 * 32);
+      // Faixa: ignora ruído mínimo da câmera parada, mas conta movimento real
+      // (piscar, virar rosto). Valor alto demais (tela toda mudando) é ignorado
+      // pra não confundir com a mão tremendo ao segurar o celular.
+      if (diferencaMedia > 2.5 && diferencaMedia < 60) {
+        livenessScore++;
+      }
+    }
+    livenessQuadroAnterior = quadroAtual;
+
+    if (livenessScore >= 3) {
+      pararDeteccaoMovimento();
+      capturarFoto('Selfie');
+      return;
+    }
+
+    // Se não detectar movimento em 9s, libera o botão manual como reserva
+    if (Date.now() - livenessInicioMs > 9000) {
+      pararDeteccaoMovimento();
+      document.getElementById('dicaLiveness').textContent = 'Não detectamos movimento — toque no botão pra capturar';
+      document.getElementById('btnCapturarSelfie').style.display = 'block';
+    }
+  }, 220);
+}
+
+function pararDeteccaoMovimento() {
+  if (livenessTimer) clearInterval(livenessTimer);
+  livenessTimer = null;
+  livenessQuadroAnterior = null;
+  document.getElementById('anelLiveness').style.display = 'none';
 }
 
 function pararCamera(tipo) {
@@ -362,6 +433,7 @@ function pararCamera(tipo) {
     streamsAtivos[tipo].getTracks().forEach(t => t.stop());
     streamsAtivos[tipo] = null;
   }
+  if (tipo === 'Selfie') pararDeteccaoMovimento();
 }
 
 function capturarFoto(tipo) {
@@ -411,7 +483,7 @@ function lerFoto(e, tipo) {
     document.getElementById('placeholder' + tipo).style.display = 'none';
     document.getElementById('btnRefazer' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
-    document.getElementById('btnGaleria' + tipo).style.display = 'none';
+    document.getElementById('btnGaleria' + tipo)?.style.setProperty('display', 'none');
     document.getElementById('btn' + (tipo === 'Doc' ? 'ContinuarDoc' : 'Finalizar')).disabled = false;
   };
   reader.readAsDataURL(file);
