@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=31">
+<link rel="stylesheet" href="assets/css/style.css?v=32">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -96,6 +96,8 @@
     <h3 style="font-size:16px;">Fotos capturadas (auditoria)</h3>
     <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;"></div>
     <div id="verificacaoIdentidade" style="display:none; margin-bottom:18px;"></div>
+    <div id="acaoLiberarNovoEnvio" style="display:none; margin-bottom:18px;"></div>
+    <div id="historicoAlteracoes" style="display:none; margin-bottom:18px;"></div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditar').style.display='none'">Cancelar</button>
       <button type="button" class="btn btn-primary" id="btnSalvarEdicao" onclick="salvarEdicao()">Salvar</button>
@@ -103,7 +105,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=31"></script>
+<script src="assets/js/supabase-client.js?v=32"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -150,6 +152,11 @@ function normalizar(s) {
 }
 
 function escapeAttr(s) { return (s || '').toString().replace(/"/g, '&quot;'); }
+
+function maisRecente(lista) {
+  if (!lista || lista.length === 0) return null;
+  return [...lista].sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))[0];
+}
 
 // Acha, para cada campo que precisamos, a coluna da planilha que mais provavelmente
 // corresponde a ele — sem pedir confirmação ao usuário. Cobre a variedade de
@@ -303,8 +310,8 @@ async function carregarUnidades() {
   for (const u of unidades) {
     const identificacao = [u.torre, u.bloco, u.apto].filter(Boolean).join(' / ');
     const morador = (u.csd_moradores || [])[0];
-    const validacao = (morador?.csd_validacoes || [])[0];
-    const medidor = (u.csd_medidores || [])[0];
+    const validacao = maisRecente(morador?.csd_validacoes);
+    const medidor = maisRecente(u.csd_medidores);
 
     const statusMedidor = medidor
       ? `<span class="badge badge-success">Capturado</span>`
@@ -327,6 +334,7 @@ async function carregarUnidades() {
       validado_em: validacao?.validado_em || null,
       nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
       facial_avaliacao: validacao?.facial_avaliacao || null, facial_observacao: validacao?.facial_observacao || null,
+      ja_validado: validacao?.status === 'validado', permitir_novo_envio: u.permitir_novo_envio || false,
     });
 
     const acoes = `
@@ -397,7 +405,61 @@ function abrirEdicao(dados) {
   document.getElementById('editEmail').value = dados.email || '';
   document.getElementById('editTelefone').value = dados.telefone || '';
   renderizarFotosAuditoria(dados);
+  renderizarLiberarNovoEnvio(dados);
+  carregarHistoricoAlteracoes(dados.id);
   document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function renderizarLiberarNovoEnvio(dados) {
+  const box = document.getElementById('acaoLiberarNovoEnvio');
+  if (!dados.ja_validado) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  box.style.display = 'block';
+  if (dados.permitir_novo_envio) {
+    box.innerHTML = `
+      <div class="card-row" style="border:none; padding:0;">
+        <span class="badge badge-warning">Nova tentativa liberada</span>
+        <span class="muted" style="font-size:12px;">O morador já pode refazer pelo link individual dele.</span>
+      </div>
+    `;
+  } else {
+    box.innerHTML = `
+      <button class="btn btn-outline btn-sm" onclick="liberarNovoEnvio('${dados.id}')">🔄 Permitir que o morador refaça a verificação</button>
+      <p class="muted" style="font-size:11px; margin-top:6px;">O cadastro atual continua salvo no histórico — nada é apagado.</p>
+    `;
+  }
+}
+
+async function liberarNovoEnvio(unidadeId) {
+  const motivo = prompt('Motivo da liberação (opcional, ajuda no histórico):') || null;
+  const { data, error } = await sb.rpc('csd_rpc_liberar_novo_envio', { p_unidade_id: unidadeId, p_observacao: motivo });
+  if (error || data?.erro) { toast('Erro ao liberar nova tentativa.', 'error'); return; }
+  toast('Liberado! O morador já pode refazer pelo link dele.', 'success');
+  unidadeEmEdicao.permitir_novo_envio = true;
+  renderizarLiberarNovoEnvio(unidadeEmEdicao);
+  carregarHistoricoAlteracoes(unidadeId);
+  await carregarUnidades();
+}
+
+async function carregarHistoricoAlteracoes(unidadeId) {
+  const box = document.getElementById('historicoAlteracoes');
+  const { data: registros } = await sb.from('csd_log_alteracoes')
+    .select('*').eq('unidade_id', unidadeId).order('criado_em', { ascending: false });
+
+  if (!registros || registros.length === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  const rotulos = { verificacao_liberada: 'liberou nova tentativa de verificação', medidor_recapturado: 'recapturou o medidor' };
+  box.style.display = 'block';
+  box.innerHTML = `
+    <p style="font-size:12px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:0.03em; margin-bottom:8px;">Histórico de alterações</p>
+    ${registros.map(r => `
+      <div style="font-size:12.5px; color:var(--ink-soft); padding:6px 0; border-bottom:1px solid var(--border);">
+        <strong style="color:var(--navy-900);">${escapeHtml(r.autor_nome)}</strong> (${r.autor_tipo}) ${rotulos[r.tipo] || r.tipo}
+        em ${new Date(r.criado_em).toLocaleString('pt-BR')}
+        ${r.observacao ? `<br><span class="muted">"${escapeHtml(r.observacao)}"</span>` : ''}
+      </div>
+    `).join('')}
+  `;
 }
 
 function renderizarFotosAuditoria(dados) {
@@ -411,7 +473,7 @@ function renderizarFotosAuditoria(dados) {
           (dados.medidor_lat ? ` · ${dados.medidor_lat.toFixed(5)}, ${dados.medidor_lng.toFixed(5)}` : '')
         : null,
     },
-    { titulo: 'Documento', url: dados.doc_foto, detalhe: null },
+    { titulo: 'Documento', url: dados.doc_foto, detalhe: dados.validado_em ? `Enviado em ${new Date(dados.validado_em).toLocaleString('pt-BR')}` : null },
     {
       titulo: 'Selfie',
       url: dados.selfie_foto,
@@ -607,8 +669,8 @@ async function exportarExcel(btn) {
   let totalCapturados = 0, totalValidados = 0;
   for (const u of (unidades || [])) {
     const morador = (u.csd_moradores || [])[0];
-    const validacao = (morador?.csd_validacoes || [])[0];
-    const medidor = (u.csd_medidores || [])[0];
+    const validacao = maisRecente(morador?.csd_validacoes);
+    const medidor = maisRecente(u.csd_medidores);
     const medidorOk = !!medidor;
     const validadoOk = validacao?.status === 'validado';
     if (medidorOk) totalCapturados++;
