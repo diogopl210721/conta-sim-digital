@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=26">
+<link rel="stylesheet" href="assets/css/style.css?v=27">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -40,7 +40,9 @@
     <div class="card">
       <h3>Importar planilha do síndico</h3>
       <p style="font-size:14px;">Qualquer formato — o sistema ajuda a mapear as colunas.</p>
-      <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv" style="margin-bottom:12px;">
+      <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv" style="display:none;">
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('arquivoPlanilha').click()" style="margin-bottom:6px;">📁 Escolher arquivo</button>
+      <p class="muted" id="nomeArquivoEscolhido" style="font-size:13px; margin:0 0 12px;">Nenhum arquivo escolhido</p>
       <div id="areaMapeamento" style="display:none;">
         <div class="divider"></div>
         <h4 style="margin-bottom:12px;">Mapeamento de colunas</h4>
@@ -106,7 +108,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=26"></script>
+<script src="assets/js/supabase-client.js?v=27"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -151,6 +153,7 @@ async function gerarLinkGeral() {
 document.getElementById('arquivoPlanilha').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
+  document.getElementById('nomeArquivoEscolhido').textContent = file.name;
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
   const primeiraAba = wb.Sheets[wb.SheetNames[0]];
@@ -313,10 +316,18 @@ async function carregarUnidades() {
     });
 
     const acoes = `
-      <button class="btn btn-outline btn-sm" onclick="window.location.href='campo.html?unidade=${u.id}'">📷 Capturar medidor</button>
-      <button class="btn btn-ghost btn-sm" onclick="gerarLinkUnidade('${u.id}')">🔗 Link do morador</button>
-      <button class="btn btn-ghost btn-sm" onclick='abrirEdicao(${dadosEdicao})'>Editar</button>
-      <button class="btn btn-ghost btn-sm" style="color:var(--danger);" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">Excluir</button>
+      <button class="icon-btn" title="Capturar medidor" onclick="window.location.href='campo.html?unidade=${u.id}'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <button class="icon-btn" title="Link do morador" onclick="gerarLinkUnidade('${u.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="icon-btn" title="Editar" onclick='abrirEdicao(${dadosEdicao})'>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+      </button>
+      <button class="icon-btn danger" title="Excluir" onclick="excluirUnidade('${u.id}', '${escapeAttr(identificacao)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+      </button>
     `;
 
     // ---- Linha da tabela (desktop) ----
