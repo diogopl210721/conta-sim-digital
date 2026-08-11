@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=33">
+<link rel="stylesheet" href="assets/css/style.css?v=34">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -178,7 +178,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=33"></script>
+<script src="assets/js/supabase-client.js?v=34"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -377,16 +377,32 @@ LIVENESS_CANVAS.width = 32;
 LIVENESS_CANVAS.height = 32;
 const LIVENESS_CTX = LIVENESS_CANVAS.getContext('2d', { willReadFrequently: true });
 
+const LIVENESS_AQUECIMENTO_MS = 1800; // ignora oscilação inicial da câmera (foco/exposição ajustando)
+const LIVENESS_TEMPO_MINIMO_MS = 3500; // garante que a pessoa viu a moldura e a instrução antes de poder capturar
+const LIVENESS_SCORE_NECESSARIO = 3;
+
 function iniciarDeteccaoMovimento() {
   const video = document.getElementById('videoSelfie');
   livenessQuadroAnterior = null;
   livenessScore = 0;
   livenessInicioMs = Date.now();
   document.getElementById('anelLiveness').style.display = 'flex';
-  document.getElementById('dicaLiveness').textContent = 'Encaixe seu rosto no oval e pisque ou balance a cabeça levemente';
+  document.getElementById('dicaLiveness').textContent = 'Encaixe seu rosto no oval...';
 
   livenessTimer = setInterval(() => {
     if (!video.videoWidth) return;
+    const decorridoMs = Date.now() - livenessInicioMs;
+
+    // Fase 1: aquecimento — só mostra a moldura, não conta nada como movimento ainda,
+    // dá tempo da câmera estabilizar o foco/exposição e da pessoa se posicionar
+    if (decorridoMs < LIVENESS_AQUECIMENTO_MS) {
+      LIVENESS_CTX.drawImage(video, 0, 0, 32, 32);
+      livenessQuadroAnterior = LIVENESS_CTX.getImageData(0, 0, 32, 32).data;
+      return;
+    }
+    if (decorridoMs === LIVENESS_AQUECIMENTO_MS || (decorridoMs > LIVENESS_AQUECIMENTO_MS && decorridoMs < LIVENESS_AQUECIMENTO_MS + 250)) {
+      document.getElementById('dicaLiveness').textContent = 'Agora pisque ou balance a cabeça levemente';
+    }
 
     LIVENESS_CTX.drawImage(video, 0, 0, 32, 32);
     const quadroAtual = LIVENESS_CTX.getImageData(0, 0, 32, 32).data;
@@ -397,23 +413,22 @@ function iniciarDeteccaoMovimento() {
         diferenca += Math.abs(quadroAtual[i] - livenessQuadroAnterior[i]);
       }
       const diferencaMedia = diferenca / (32 * 32);
-      // Faixa: ignora ruído mínimo da câmera parada, mas conta movimento real
-      // (piscar, virar rosto). Valor alto demais (tela toda mudando) é ignorado
-      // pra não confundir com a mão tremendo ao segurar o celular.
       if (diferencaMedia > 2.5 && diferencaMedia < 60) {
         livenessScore++;
       }
     }
     livenessQuadroAnterior = quadroAtual;
 
-    if (livenessScore >= 3) {
+    // Só captura depois do tempo mínimo (garante que a pessoa viu a moldura) E
+    // com movimento suficiente detectado
+    if (decorridoMs >= LIVENESS_TEMPO_MINIMO_MS && livenessScore >= LIVENESS_SCORE_NECESSARIO) {
       pararDeteccaoMovimento();
       capturarFoto('Selfie');
       return;
     }
 
-    // Se não detectar movimento em 9s, libera o botão manual como reserva
-    if (Date.now() - livenessInicioMs > 9000) {
+    // Se não detectar movimento em 12s (já descontado o aquecimento), libera o botão manual
+    if (decorridoMs > 12000) {
       pararDeteccaoMovimento();
       document.getElementById('dicaLiveness').textContent = 'Não detectamos movimento — toque no botão pra capturar';
       document.getElementById('btnCapturarSelfie').style.display = 'block';
