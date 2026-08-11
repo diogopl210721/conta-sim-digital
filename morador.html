@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=30">
+<link rel="stylesheet" href="assets/css/style.css?v=31">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -99,7 +99,7 @@
     <!-- ETAPA: foto documento -->
     <div id="etapaDocumento" style="display:none;">
       <h2>Foto do documento</h2>
-      <p>Tire uma foto do seu RG ou CNH.</p>
+      <p>Tire uma foto do seu RG ou CNH, ou envie um arquivo (imagem ou PDF).</p>
       <div class="photo-frame" id="frameDoc">
         <div class="placeholder" id="placeholderDoc">
           <div style="font-size:32px; margin-bottom:8px;">🪪</div>
@@ -111,11 +111,15 @@
         </div>
         <button class="camera-capture-btn" id="btnCapturarDoc" style="display:none;" onclick="capturarFoto('Doc')"></button>
         <img id="previewDoc" style="display:none;">
+        <div class="placeholder" id="previewDocPdf" style="display:none;">
+          <div style="font-size:32px; margin-bottom:8px;">📄</div>
+          <div id="nomeArquivoDocPdf">Documento em PDF selecionado</div>
+        </div>
       </div>
       <input type="file" id="inputDoc" accept="image/*" capture="environment" style="display:none;">
-      <input type="file" id="inputDocGaleria" accept="image/*" style="display:none;">
+      <input type="file" id="inputDocGaleria" accept="image/*,application/pdf" style="display:none;">
       <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">📷 Tirar foto do documento</button>
-      <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria</button>
+      <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria (foto ou PDF)</button>
       <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
       <p id="avisoNomeDoc" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:10px 14px; border-radius:10px; margin-bottom:12px;"></p>
       <button class="btn btn-primary btn-block" id="btnContinuarDoc" onclick="continuarAposDocumento()" disabled>Continuar</button>
@@ -172,7 +176,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=30"></script>
+<script src="assets/js/supabase-client.js?v=31"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -341,6 +345,7 @@ async function abrirCamera(tipo) {
     video.style.display = 'block';
     document.getElementById('placeholder' + tipo).style.display = 'none';
     document.getElementById('preview' + tipo).style.display = 'none';
+    if (tipo === 'Doc') document.getElementById('previewDocPdf').style.display = 'none';
     document.getElementById('guia' + tipo).style.display = 'flex';
     document.getElementById('btnCapturar' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
@@ -385,14 +390,24 @@ function lerFoto(e, tipo) {
   const file = e.target.files[0];
   if (!file) return;
   if (tipo === 'Doc') document.getElementById('avisoNomeDoc').style.display = 'none';
+
+  const ehPdf = file.type === 'application/pdf';
   const reader = new FileReader();
   reader.onload = () => {
     const dataUrl = reader.result;
     if (tipo === 'Doc') { docBase64 = dataUrl.split(',')[1]; docMediaType = file.type; }
     else { selfieBase64 = dataUrl.split(',')[1]; selfieMediaType = file.type; }
 
-    document.getElementById('preview' + tipo).src = dataUrl;
-    document.getElementById('preview' + tipo).style.display = 'block';
+    if (ehPdf && tipo === 'Doc') {
+      document.getElementById('nomeArquivoDocPdf').textContent = file.name;
+      document.getElementById('previewDocPdf').style.display = 'flex';
+      document.getElementById('previewDoc').style.display = 'none';
+    } else {
+      document.getElementById('preview' + tipo).src = dataUrl;
+      document.getElementById('preview' + tipo).style.display = 'block';
+      if (tipo === 'Doc') document.getElementById('previewDocPdf').style.display = 'none';
+    }
+
     document.getElementById('placeholder' + tipo).style.display = 'none';
     document.getElementById('btnRefazer' + tipo).style.display = 'block';
     document.getElementById('btnAbrirCamera' + tipo).style.display = 'none';
@@ -439,7 +454,8 @@ async function continuarAposDocumento() {
 }
 
 async function uploadFoto(base64, mediaType, prefixo) {
-  const nomeArquivo = `${prefixo}/${moradorId}-${Date.now()}.jpg`;
+  const extensao = mediaType === 'application/pdf' ? 'pdf' : 'jpg';
+  const nomeArquivo = `${prefixo}/${moradorId}-${Date.now()}.${extensao}`;
   const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
   const { error } = await sb.storage.from('csd-fotos').upload(nomeArquivo, bytes, { contentType: mediaType || 'image/jpeg' });
   if (error) throw error;
