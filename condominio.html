@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=27">
+<link rel="stylesheet" href="assets/css/style.css?v=28">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -39,16 +39,10 @@
     <!-- Importação de planilha -->
     <div class="card">
       <h3>Importar planilha do síndico</h3>
-      <p style="font-size:14px;">Qualquer formato — o sistema ajuda a mapear as colunas.</p>
+      <p style="font-size:14px;">Qualquer formato — o sistema identifica as colunas automaticamente.</p>
       <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv" style="display:none;">
-      <button class="btn btn-outline btn-sm" onclick="document.getElementById('arquivoPlanilha').click()" style="margin-bottom:6px;">📁 Escolher arquivo</button>
-      <p class="muted" id="nomeArquivoEscolhido" style="font-size:13px; margin:0 0 12px;">Nenhum arquivo escolhido</p>
-      <div id="areaMapeamento" style="display:none;">
-        <div class="divider"></div>
-        <h4 style="margin-bottom:12px;">Mapeamento de colunas</h4>
-        <div id="camposMapeamento" class="stack"></div>
-        <button class="btn btn-primary" id="btnImportar" onclick="importarPlanilha()" style="margin-top:16px;">Importar dados</button>
-      </div>
+      <button class="btn btn-outline btn-sm" id="btnEscolherArquivo" onclick="document.getElementById('arquivoPlanilha').click()" style="margin-bottom:6px;">📁 Escolher arquivo</button>
+      <p class="muted" id="nomeArquivoEscolhido" style="font-size:13px; margin:0;">Nenhum arquivo escolhido</p>
       <div id="resultadoImportacao" class="muted" style="margin-top:12px; font-size:14px;"></div>
     </div>
     </div>
@@ -95,6 +89,7 @@
     <h3 style="font-size:16px;">Morador</h3>
     <div class="field"><label>Nome</label><input type="text" id="editNome"></div>
     <div class="field"><label>CPF</label><input type="text" id="editCpf"></div>
+    <div class="field"><label>Data de nascimento</label><input type="text" id="editNascimento" placeholder="DD/MM/AAAA"></div>
     <div class="field"><label>E-mail</label><input type="email" id="editEmail"></div>
     <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
     <div class="divider"></div>
@@ -108,7 +103,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=27"></script>
+<script src="assets/js/supabase-client.js?v=28"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -117,13 +112,14 @@ let planilhaLinhas = [];
 let planilhaCabecalhos = [];
 
 const CAMPOS_ALVO = [
-  { chave: 'torre', label: 'Torre', obrigatorio: false, aliases: ['torre'] },
-  { chave: 'bloco', label: 'Bloco', obrigatorio: false, aliases: ['bloco'] },
-  { chave: 'apto', label: 'Apto / Unidade', obrigatorio: true, aliases: ['apto', 'unidade', 'apartamento'] },
-  { chave: 'nome', label: 'Nome do morador', obrigatorio: false, aliases: ['nome', 'titular', 'cliente', 'morador'] },
-  { chave: 'cpf', label: 'CPF / CNPJ', obrigatorio: false, aliases: ['cpf', 'cnpj', 'doc'] },
-  { chave: 'email', label: 'E-mail', obrigatorio: false, aliases: ['email', 'e-mail'] },
-  { chave: 'telefone', label: 'Telefone', obrigatorio: false, aliases: ['telefone', 'celular', 'contato', 'tel'] },
+  { chave: 'torre', aliases: ['torre', 'bloco torre', 'edificio', 'predio'] },
+  { chave: 'bloco', aliases: ['bloco', 'quadra'] },
+  { chave: 'apto', aliases: ['apto', 'apartamento', 'unidade', 'unid', 'ap '] },
+  { chave: 'nome', aliases: ['nome', 'titular', 'cliente', 'morador', 'proprietario', 'razao social'] },
+  { chave: 'nascimento', aliases: ['nascimento', 'nasc', 'data nasc', 'aniversario', 'dt nasc'] },
+  { chave: 'cpf', aliases: ['cpf', 'cnpj', 'doc cpf', 'documento'] },
+  { chave: 'email', aliases: ['email', 'e-mail', 'e mail'] },
+  { chave: 'telefone', aliases: ['telefone', 'celular', 'contato', 'tel ', 'fone', 'whatsapp'] },
 ];
 
 async function iniciar() {
@@ -149,69 +145,57 @@ async function gerarLinkGeral() {
   document.getElementById('linkGeralBox').style.display = 'flex';
 }
 
-// ---------- Importação ----------
-document.getElementById('arquivoPlanilha').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  document.getElementById('nomeArquivoEscolhido').textContent = file.name;
-  const buf = await file.arrayBuffer();
-  const wb = XLSX.read(buf, { type: 'array' });
-  const primeiraAba = wb.Sheets[wb.SheetNames[0]];
-  const linhas = XLSX.utils.sheet_to_json(primeiraAba, { defval: '' });
-  if (linhas.length === 0) { toast('Planilha vazia.', 'error'); return; }
-
-  planilhaLinhas = linhas;
-  planilhaCabecalhos = Object.keys(linhas[0]);
-  montarMapeamento();
-});
-
 function normalizar(s) {
   return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
 
-function montarMapeamento() {
-  const area = document.getElementById('camposMapeamento');
-  area.innerHTML = '';
-
-  for (const campo of CAMPOS_ALVO) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'field';
-    wrapper.style.marginBottom = '10px';
-
-    const label = document.createElement('label');
-    label.textContent = campo.label + (campo.obrigatorio ? ' *' : '');
-    wrapper.appendChild(label);
-
-    const select = document.createElement('select');
-    select.id = 'map_' + campo.chave;
-    select.innerHTML = '<option value="">— não usar —</option>' +
-      planilhaCabecalhos.map(h => `<option value="${escapeAttr(h)}">${escapeAttr(h)}</option>`).join('');
-
-    // Auto-detecção por aliases
-    const match = planilhaCabecalhos.find(h => campo.aliases.some(a => normalizar(h).includes(a)));
-    if (match) select.value = match;
-
-    wrapper.appendChild(select);
-    area.appendChild(wrapper);
-  }
-
-  document.getElementById('areaMapeamento').style.display = 'block';
-}
-
 function escapeAttr(s) { return (s || '').toString().replace(/"/g, '&quot;'); }
 
-async function importarPlanilha() {
-  const btn = document.getElementById('btnImportar');
-  const mapeamento = {};
+// Acha, para cada campo que precisamos, a coluna da planilha que mais provavelmente
+// corresponde a ele — sem pedir confirmação ao usuário. Cobre a variedade de
+// nomenclaturas que cada síndico usa na própria planilha.
+function detectarMapeamento(cabecalhos) {
+  const mapa = {};
   for (const campo of CAMPOS_ALVO) {
-    mapeamento[campo.chave] = document.getElementById('map_' + campo.chave).value;
+    const match = cabecalhos.find(h => campo.aliases.some(a => normalizar(h).includes(a)));
+    mapa[campo.chave] = match || null;
   }
-  if (!mapeamento.apto) {
-    toast('Selecione ao menos a coluna do Apto/Unidade.', 'error');
-    return;
-  }
+  return mapa;
+}
 
+// ---------- Importação (automática, sem etapa de mapeamento manual) ----------
+document.getElementById('arquivoPlanilha').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  document.getElementById('nomeArquivoEscolhido').textContent = file.name;
+
+  const btn = document.getElementById('btnEscolherArquivo');
   setBtnLoading(btn, true);
+
+  try {
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const primeiraAba = wb.Sheets[wb.SheetNames[0]];
+    const linhas = XLSX.utils.sheet_to_json(primeiraAba, { defval: '' });
+    if (linhas.length === 0) { toast('Planilha vazia.', 'error'); setBtnLoading(btn, false, '📁 Escolher arquivo'); return; }
+
+    planilhaLinhas = linhas;
+    planilhaCabecalhos = Object.keys(linhas[0]);
+    const mapeamento = detectarMapeamento(planilhaCabecalhos);
+
+    if (!mapeamento.apto) {
+      toast('Não encontrei uma coluna de apartamento/unidade nessa planilha. Confira o arquivo.', 'error');
+      setBtnLoading(btn, false, '📁 Escolher arquivo');
+      return;
+    }
+
+    await importarPlanilha(mapeamento);
+  } finally {
+    setBtnLoading(btn, false, '📁 Escolher arquivo');
+  }
+});
+
+async function importarPlanilha(mapeamento) {
   let importadas = 0, erros = 0;
 
   for (const linha of planilhaLinhas) {
@@ -221,6 +205,7 @@ async function importarPlanilha() {
     if (!apto) continue;
 
     const nome = mapeamento.nome ? String(linha[mapeamento.nome] || '').trim() : '';
+    const nascimento = mapeamento.nascimento ? String(linha[mapeamento.nascimento] || '').trim() : '';
     const cpf = mapeamento.cpf ? String(linha[mapeamento.cpf] || '').trim() : '';
     const email = mapeamento.email ? String(linha[mapeamento.email] || '').trim() : '';
     const telefone = mapeamento.telefone ? String(linha[mapeamento.telefone] || '').trim() : '';
@@ -245,13 +230,13 @@ async function importarPlanilha() {
       }
 
       // Cria o morador vinculado (se a planilha trouxer algum dado)
-      if (nome || cpf || email || telefone) {
+      if (nome || cpf || email || telefone || nascimento) {
         const { data: moradorExistente } = await sb.from('csd_moradores')
           .select('id').eq('unidade_id', unidade.id).eq('origem', 'planilha').maybeSingle();
 
         if (!moradorExistente) {
           await sb.from('csd_moradores').insert({
-            unidade_id: unidade.id, nome, cpf, email, telefone, origem: 'planilha'
+            unidade_id: unidade.id, nome, cpf, email, telefone, data_nascimento: nascimento, origem: 'planilha'
           });
         }
       }
@@ -261,7 +246,6 @@ async function importarPlanilha() {
     }
   }
 
-  setBtnLoading(btn, false, 'Importar dados');
   document.getElementById('resultadoImportacao').textContent =
     `${importadas} unidade(s) importada(s)` + (erros ? `, ${erros} erro(s).` : '.');
   toast('Importação concluída!', 'success');
@@ -306,7 +290,7 @@ async function carregarUnidades() {
 
     const dadosEdicao = JSON.stringify({
       id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto,
-      morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", email: morador?.email || "", telefone: morador?.telefone || "",
+      morador_id: morador?.id || null, nome: morador?.nome || "", cpf: morador?.cpf || "", nascimento: morador?.data_nascimento || "", email: morador?.email || "", telefone: morador?.telefone || "",
       medidor_foto: medidor?.foto_url || null, medidor_capturado_em: medidor?.capturado_em || null,
       medidor_lat: medidor?.latitude || null, medidor_lng: medidor?.longitude || null,
       doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
@@ -379,6 +363,7 @@ function abrirEdicao(dados) {
   document.getElementById('editApto').value = dados.apto || '';
   document.getElementById('editNome').value = dados.nome || '';
   document.getElementById('editCpf').value = dados.cpf || '';
+  document.getElementById('editNascimento').value = dados.nascimento || '';
   document.getElementById('editEmail').value = dados.email || '';
   document.getElementById('editTelefone').value = dados.telefone || '';
   renderizarFotosAuditoria(dados);
@@ -455,6 +440,7 @@ async function salvarEdicao() {
   const apto = document.getElementById('editApto').value.trim();
   const nome = document.getElementById('editNome').value.trim();
   const cpf = document.getElementById('editCpf').value.trim();
+  const nascimento = document.getElementById('editNascimento').value.trim();
   const email = document.getElementById('editEmail').value.trim();
   const telefone = document.getElementById('editTelefone').value.trim();
 
@@ -465,12 +451,12 @@ async function salvarEdicao() {
   let erroMorador = null;
   if (unidadeEmEdicao.morador_id) {
     const { error } = await sb.from('csd_moradores')
-      .update({ nome, cpf, email, telefone })
+      .update({ nome, cpf, data_nascimento: nascimento, email, telefone })
       .eq('id', unidadeEmEdicao.morador_id);
     erroMorador = error;
   } else if (nome || cpf || email || telefone) {
     const { error } = await sb.from('csd_moradores')
-      .insert({ unidade_id: unidadeEmEdicao.id, nome, cpf, email, telefone, origem: 'planilha' });
+      .insert({ unidade_id: unidadeEmEdicao.id, nome, cpf, data_nascimento: nascimento, email, telefone, origem: 'planilha' });
     erroMorador = error;
   }
 
