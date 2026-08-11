@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=28">
+<link rel="stylesheet" href="assets/css/style.css?v=29">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -103,7 +103,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=28"></script>
+<script src="assets/js/supabase-client.js?v=29"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -181,7 +181,13 @@ document.getElementById('arquivoPlanilha').addEventListener('change', async (e) 
 
     planilhaLinhas = linhas;
     planilhaCabecalhos = Object.keys(linhas[0]);
-    const mapeamento = detectarMapeamento(planilhaCabecalhos);
+
+    let mapeamento = await detectarMapeamentoComIA(planilhaCabecalhos, linhas.slice(0, 5));
+    if (!mapeamento) {
+      // Se a IA não respondeu por qualquer motivo (rede, etc.), cai no
+      // reconhecimento por palavras-chave como reserva, pra nunca travar a importação
+      mapeamento = detectarMapeamento(planilhaCabecalhos);
+    }
 
     if (!mapeamento.apto) {
       toast('Não encontrei uma coluna de apartamento/unidade nessa planilha. Confira o arquivo.', 'error');
@@ -194,6 +200,30 @@ document.getElementById('arquivoPlanilha').addEventListener('change', async (e) 
     setBtnLoading(btn, false, '📁 Escolher arquivo');
   }
 });
+
+async function detectarMapeamentoComIA(cabecalhos, amostras) {
+  try {
+    const { data, error } = await sb.functions.invoke('csd-mapear-planilha', {
+      body: { cabecalhos, amostras },
+    });
+    if (error || !data?.mapeamento) return null;
+
+    // Traduz nomes de campo da IA (data_nascimento) pro nome usado internamente (nascimento)
+    const m = data.mapeamento;
+    return {
+      torre: m.torre || null,
+      bloco: m.bloco || null,
+      apto: m.apto || null,
+      nome: m.nome || null,
+      nascimento: m.data_nascimento || null,
+      cpf: m.cpf || null,
+      email: m.email || null,
+      telefone: m.telefone || null,
+    };
+  } catch (e) {
+    return null;
+  }
+}
 
 async function importarPlanilha(mapeamento) {
   let importadas = 0, erros = 0;
