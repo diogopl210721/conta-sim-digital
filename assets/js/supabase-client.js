@@ -83,6 +83,39 @@ function deInputDate(str) {
   return `${m[3]}/${m[2]}/${m[1]}`;
 }
 
+// Abre o seletor de calendário nativo vinculado a um campo de texto de data.
+// Espera existir um <input type="date"> oculto com id = idCampo + '_calendario'.
+function abrirCalendario(idCampo) {
+  const calInput = document.getElementById(idCampo + '_calendario');
+  const textInput = document.getElementById(idCampo);
+  if (!calInput || !textInput) return;
+
+  const valorAtual = paraInputDate(textInput.value);
+  if (valorAtual) calInput.value = valorAtual;
+
+  try {
+    calInput.showPicker();
+  } catch (e) {
+    // Navegador sem suporte a showPicker(): torna o calendário visível pra clicar direto nele
+    calInput.style.opacity = '1';
+    calInput.style.pointerEvents = 'auto';
+    calInput.style.width = 'auto';
+    calInput.style.height = 'auto';
+    calInput.focus();
+  }
+}
+
+// Liga o campo de texto ao calendário oculto: ao escolher uma data no calendário,
+// preenche o campo de texto em DD/MM/AAAA automaticamente
+function ligarCalendario(idCampo) {
+  const calInput = document.getElementById(idCampo + '_calendario');
+  const textInput = document.getElementById(idCampo);
+  if (!calInput || !textInput) return;
+  calInput.addEventListener('change', () => {
+    textInput.value = deInputDate(calInput.value);
+  });
+}
+
 function apenasDigitos(str) {
   return (str || '').replace(/\D/g, '');
 }
