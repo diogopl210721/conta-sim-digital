@@ -65,6 +65,24 @@ function formatarCPF(cpf) {
   return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
 }
 
+// Converte data no formato DD/MM/AAAA (como salvamos no banco) para AAAA-MM-DD
+// (formato que o <input type="date"> exige para preencher o calendário)
+function paraInputDate(str) {
+  if (!str) return '';
+  const m = str.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str.trim())) return str.trim();
+  return '';
+}
+
+// Converte AAAA-MM-DD (valor do <input type="date">) de volta para DD/MM/AAAA
+function deInputDate(str) {
+  if (!str) return '';
+  const m = str.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return str;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
 function apenasDigitos(str) {
   return (str || '').replace(/\D/g, '');
 }

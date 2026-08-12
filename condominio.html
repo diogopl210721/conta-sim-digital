@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=39">
+<link rel="stylesheet" href="assets/css/style.css?v=40">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -89,7 +89,7 @@
     <h3 style="font-size:16px;">Morador</h3>
     <div class="field"><label>Nome</label><input type="text" id="editNome"></div>
     <div class="field"><label>CPF</label><input type="text" id="editCpf"></div>
-    <div class="field"><label>Data de nascimento</label><input type="text" id="editNascimento" placeholder="DD/MM/AAAA"></div>
+    <div class="field"><label>Data de nascimento</label><input type="date" id="editNascimento"></div>
     <div class="field"><label>E-mail</label><input type="email" id="editEmail"></div>
     <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
     <div class="divider"></div>
@@ -106,7 +106,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=39"></script>
+<script src="assets/js/supabase-client.js?v=40"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -409,7 +409,7 @@ function abrirEdicao(dados) {
   document.getElementById('editApto').value = dados.apto || '';
   document.getElementById('editNome').value = dados.nome || '';
   document.getElementById('editCpf').value = dados.cpf || '';
-  document.getElementById('editNascimento').value = dados.nascimento || '';
+  document.getElementById('editNascimento').value = paraInputDate(dados.nascimento || '');
   document.getElementById('editEmail').value = dados.email || '';
   document.getElementById('editTelefone').value = dados.telefone || '';
   renderizarFotosAuditoria(dados);
@@ -599,7 +599,7 @@ async function salvarEdicao() {
   const apto = document.getElementById('editApto').value.trim();
   const nome = document.getElementById('editNome').value.trim();
   const cpf = document.getElementById('editCpf').value.trim();
-  const nascimento = document.getElementById('editNascimento').value.trim();
+  const nascimento = deInputDate(document.getElementById('editNascimento').value.trim());
   const email = document.getElementById('editEmail').value.trim();
   const telefone = document.getElementById('editTelefone').value.trim();
 
