@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=41">
+<link rel="stylesheet" href="assets/css/style.css?v=42">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -95,9 +95,9 @@
         <label>Data de nascimento (dia/mês/ano)</label>
         <div style="position:relative;">
           <input type="text" id="confNascimento" placeholder="DD/MM/AAAA" inputmode="numeric" style="padding-right:48px;">
-          <button type="button" onclick="abrirCalendario('confNascimento')" aria-label="Abrir calendário"
-            style="position:absolute; right:4px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:22px; cursor:pointer; padding:10px;">📅</button>
-          <input type="date" id="confNascimento_calendario" style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; right:10px; top:50%;">
+          <span aria-hidden="true" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:20px; pointer-events:none;">📅</span>
+          <input type="date" id="confNascimento_calendario" aria-label="Abrir calendário"
+            style="position:absolute; right:0; top:0; width:48px; height:100%; opacity:0; margin:0; border:none; cursor:pointer;">
         </div>
       </div>
       <div class="field"><label>E-mail</label><input type="email" id="confEmail"></div>
@@ -188,7 +188,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=41"></script>
+<script src="assets/js/supabase-client.js?v=42"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
