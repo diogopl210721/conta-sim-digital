@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=37">
+<link rel="stylesheet" href="assets/css/style.css?v=38">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -106,7 +106,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=37"></script>
+<script src="assets/js/supabase-client.js?v=38"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -115,14 +115,14 @@ let planilhaLinhas = [];
 let planilhaCabecalhos = [];
 
 const CAMPOS_ALVO = [
-  { chave: 'torre', aliases: ['torre', 'bloco torre', 'edificio', 'predio'] },
-  { chave: 'bloco', aliases: ['bloco', 'quadra'] },
-  { chave: 'apto', aliases: ['apto', 'apartamento', 'unidade', 'unid', 'ap '] },
-  { chave: 'nome', aliases: ['nome', 'titular', 'cliente', 'morador', 'proprietario', 'razao social'] },
-  { chave: 'nascimento', aliases: ['nascimento', 'nasc', 'data nasc', 'aniversario', 'dt nasc'] },
-  { chave: 'cpf', aliases: ['cpf', 'cnpj', 'doc cpf', 'documento'] },
-  { chave: 'email', aliases: ['email', 'e-mail', 'e mail'] },
-  { chave: 'telefone', aliases: ['telefone', 'celular', 'contato', 'tel ', 'fone', 'whatsapp'] },
+  { chave: 'torre', aliases: ['torre', 'bloco torre', 'edificio', 'predio', 'tower', 'building'] },
+  { chave: 'bloco', aliases: ['bloco', 'quadra', 'block'] },
+  { chave: 'apto', aliases: ['apto', 'apartamento', 'unidade', 'unid', 'ap ', 'unit', 'apt'] },
+  { chave: 'nome', aliases: ['nome', 'titular', 'cliente', 'morador', 'proprietario', 'razao social', 'name', 'owner', 'resident'] },
+  { chave: 'nascimento', aliases: ['nascimento', 'nasc', 'data nasc', 'aniversario', 'dt nasc', 'birth', 'dob'] },
+  { chave: 'cpf', aliases: ['cpf', 'cnpj', 'doc cpf', 'documento', 'tax_id', 'tax id', 'document', 'ssn'] },
+  { chave: 'email', aliases: ['email', 'e-mail', 'e mail', 'mail'] },
+  { chave: 'telefone', aliases: ['telefone', 'celular', 'contato', 'tel ', 'fone', 'whatsapp', 'mobile', 'phone', 'cell'] },
 ];
 
 async function iniciar() {
