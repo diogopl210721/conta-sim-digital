@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>Conta Sim Digital — Consigaz</title>
-<link rel="stylesheet" href="assets/css/style.css?v=42">
+<link rel="stylesheet" href="assets/css/style.css?v=43">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background: var(--navy-900);">
@@ -85,7 +85,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=42"></script>
+<script src="assets/js/supabase-client.js?v=43"></script>
 <script>
 let tipoCadastro = 'consultor';
 
@@ -165,10 +165,10 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
   // Confirma que a sessão está mesmo disponível antes de prosseguir (evita corrida
   // entre o cadastro no Auth e a chamada seguinte, que depende do usuário autenticado)
   let sessaoPronta = null;
-  for (let tentativa = 0; tentativa < 5 && !sessaoPronta; tentativa++) {
+  for (let tentativa = 0; tentativa < 15 && !sessaoPronta; tentativa++) {
     const { data: { session } } = await sb.auth.getSession();
     sessaoPronta = session;
-    if (!sessaoPronta) await new Promise(r => setTimeout(r, 300));
+    if (!sessaoPronta) await new Promise(r => setTimeout(r, 350));
   }
   if (!sessaoPronta) {
     toast('Conta criada, mas a sessão demorou a iniciar. Tente fazer login normalmente.', 'error');
