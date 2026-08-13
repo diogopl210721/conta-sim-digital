@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=45">
+<link rel="stylesheet" href="assets/css/style.css?v=46">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -100,6 +100,9 @@
       </div>
       <div class="field"><label>E-mail</label><input type="email" id="confEmail"></div>
       <div class="field"><label>Telefone</label><input type="tel" id="confTelefone"></div>
+      <p id="avisoMenorIdade" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:12px 14px; border-radius:10px; margin-bottom:12px;">
+        A data de nascimento informada é de uma pessoa menor de idade. Como o cadastro precisa ser de um responsável, por favor informe aqui o <strong>nome, CPF e data de nascimento de um adulto responsável</strong> pela unidade — o documento e a selfie enviados nas próximas etapas também devem ser dessa pessoa.
+      </p>
       <button class="btn btn-primary btn-block" onclick="salvarConfirmacao()">Confirmar dados</button>
     </div>
 
@@ -186,7 +189,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=45"></script>
+<script src="assets/js/supabase-client.js?v=46"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -339,12 +342,33 @@ async function salvarConfirmacao() {
   if (!email) { toast('Informe seu e-mail.', 'error'); return; }
   if (!telefone) { toast('Informe seu telefone.', 'error'); return; }
 
+  const idade = calcularIdade(nascimento);
+  if (idade !== null && idade < 18) {
+    document.getElementById('avisoMenorIdade').style.display = 'block';
+    return;
+  }
+  document.getElementById('avisoMenorIdade').style.display = 'none';
+
   const { error } = await sb.rpc('csd_rpc_atualizar_morador', {
     p_morador_id: moradorId, p_nome: nome, p_cpf: cpf, p_email: email, p_telefone: telefone, p_data_nascimento: nascimento
   });
   if (error) { toast('Erro ao salvar dados.', 'error'); return; }
   salvarProgresso('documento');
   mostrarEtapa('documento', 3);
+}
+
+// Calcula idade a partir de DD/MM/AAAA. Retorna null se não conseguir interpretar a data.
+function calcularIdade(dataStr) {
+  const m = dataStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const nascimento = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (isNaN(nascimento.getTime())) return null;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+  const aindaNaoFezAniversario = (hoje.getMonth() < nascimento.getMonth()) ||
+    (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate());
+  if (aindaNaoFezAniversario) idade--;
+  return idade;
 }
 
 document.getElementById('inputDoc').addEventListener('change', (e) => lerFoto(e, 'Doc'));

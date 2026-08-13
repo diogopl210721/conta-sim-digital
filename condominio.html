@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=45">
+<link rel="stylesheet" href="assets/css/style.css?v=46">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -112,7 +112,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=45"></script>
+<script src="assets/js/supabase-client.js?v=46"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -163,6 +163,15 @@ function escapeAttr(s) { return (s || '').toString().replace(/"/g, '&quot;'); }
 function maisRecente(lista) {
   if (!lista || lista.length === 0) return null;
   return [...lista].sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em))[0];
+}
+
+// Quando o CPF não bate na planilha, o morador acaba criando um cadastro novo
+// (fluxo "cadastro do zero"), e a unidade passa a ter mais de um registro de
+// morador. Prioriza sempre quem já concluiu a validação — senão, o mais recente.
+function moradorAtual(lista) {
+  if (!lista || lista.length === 0) return null;
+  const comValidacao = lista.find(m => (m.csd_validacoes || []).some(v => v.status === 'validado'));
+  return comValidacao || maisRecente(lista);
 }
 
 // Acha, para cada campo que precisamos, a coluna da planilha que mais provavelmente
@@ -316,7 +325,7 @@ async function carregarUnidades() {
 
   for (const u of unidades) {
     const identificacao = [u.torre, u.bloco, u.apto].filter(Boolean).join(' / ');
-    const morador = (u.csd_moradores || [])[0];
+    const morador = moradorAtual(u.csd_moradores);
     const validacao = maisRecente(morador?.csd_validacoes);
     const medidor = maisRecente(u.csd_medidores);
 
@@ -736,7 +745,7 @@ async function exportarExcel(btn) {
   // Linhas de dados
   let totalCapturados = 0, totalValidados = 0, totalCompletas = 0;
   for (const u of (unidades || [])) {
-    const morador = (u.csd_moradores || [])[0];
+    const morador = moradorAtual(u.csd_moradores);
     const validacao = maisRecente(morador?.csd_validacoes);
     const medidor = maisRecente(u.csd_medidores);
     const medidorOk = !!medidor;
