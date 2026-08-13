@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=46">
+<link rel="stylesheet" href="assets/css/style.css?v=47">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -75,10 +75,19 @@
 
     <!-- ETAPA: cadastro do zero -->
     <div id="etapaCadastroZero" style="display:none;">
-      <h2>Vamos fazer seu cadastro</h2>
-      <p>Não encontramos seus dados na planilha do síndico — preencha abaixo.</p>
+      <h2>Vamos refazer seu cadastro</h2>
+      <p>Os dados que temos podem estar desatualizados ou não bateram com o que foi informado — sem problema, é só preencher novamente abaixo.</p>
       <div class="field"><label>Nome completo</label><input type="text" id="zeroNome"></div>
       <div class="field"><label>CPF</label><input type="text" id="zeroCpf" inputmode="numeric" placeholder="000.000.000-00"></div>
+      <div class="field">
+        <label>Data de nascimento (dia/mês/ano)</label>
+        <div style="position:relative;">
+          <input type="text" id="zeroNascimento" placeholder="DD/MM/AAAA" inputmode="numeric" style="padding-right:48px;">
+          <span aria-hidden="true" style="position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:20px; pointer-events:none;">📅</span>
+          <input type="date" id="zeroNascimento_calendario" aria-label="Abrir calendário"
+            style="position:absolute; right:0; top:0; width:48px; height:100%; opacity:0; margin:0; border:none; cursor:pointer;">
+        </div>
+      </div>
       <div class="field"><label>E-mail</label><input type="email" id="zeroEmail"></div>
       <div class="field"><label>Telefone</label><input type="tel" id="zeroTelefone"></div>
       <button class="btn btn-primary btn-block" onclick="salvarCadastroZero()">Continuar</button>
@@ -108,6 +117,7 @@
 
     <!-- ETAPA: foto documento -->
     <div id="etapaDocumento" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarEtapa('confirmar', 2)" style="margin-bottom:4px; padding-left:0;">← Voltar e conferir os dados</button>
       <h2>Foto do documento</h2>
       <p>Tire uma foto do seu RG ou CNH, ou envie um arquivo (imagem ou PDF).</p>
       <div class="photo-frame" id="frameDoc">
@@ -141,6 +151,7 @@
 
     <!-- ETAPA: selfie -->
     <div id="etapaSelfie" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="pararCamera('Selfie'); mostrarEtapa('documento', 3)" style="margin-bottom:4px; padding-left:0;">← Voltar ao documento</button>
       <h2>Agora, uma selfie</h2>
       <p>Isso confirma que é você mesmo concluindo o cadastro — precisa ser ao vivo, pela câmera.</p>
       <div class="photo-frame" id="frameSelfie">
@@ -189,7 +200,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=46"></script>
+<script src="assets/js/supabase-client.js?v=47"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -311,19 +322,21 @@ async function validarCpf() {
 async function salvarCadastroZero() {
   const nome = document.getElementById('zeroNome').value.trim();
   const cpf = document.getElementById('zeroCpf').value.trim();
+  const nascimento = document.getElementById('zeroNascimento').value.trim();
   const email = document.getElementById('zeroEmail').value.trim();
   const telefone = document.getElementById('zeroTelefone').value.trim();
 
   if (!nome || !cpf) { toast('Preencha nome e CPF.', 'error'); return; }
 
   const { data, error } = await sb.rpc('csd_rpc_cadastrar_morador_zero', {
-    p_unidade_id: unidadeId, p_nome: nome, p_cpf: cpf, p_email: email, p_telefone: telefone
+    p_unidade_id: unidadeId, p_nome: nome, p_cpf: cpf, p_email: email, p_telefone: telefone, p_data_nascimento: nascimento
   });
   if (error) { toast('Erro ao salvar cadastro.', 'error'); return; }
   moradorId = data.morador_id;
 
   document.getElementById('confNome').value = nome;
   document.getElementById('confCpf').value = cpf;
+  document.getElementById('confNascimento').value = nascimento;
   document.getElementById('confEmail').value = email;
   document.getElementById('confTelefone').value = telefone;
   mostrarEtapa('confirmar', 2);
