@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>Conta Sim Digital — Consigaz</title>
-<link rel="stylesheet" href="assets/css/style.css?v=43">
+<link rel="stylesheet" href="assets/css/style.css?v=44">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background: var(--navy-900);">
@@ -42,23 +40,12 @@
 
       <!-- CADASTRO -->
       <form id="formCadastro" style="display:none;">
-        <div class="tabs" style="margin-bottom: 20px;">
-          <div class="tab active" id="tabConsultor" onclick="mudarTipoCadastro('consultor')">Sou consultor</div>
-          <div class="tab" id="tabAjudante" onclick="mudarTipoCadastro('ajudante')">Sou ajudante</div>
-        </div>
-
         <div class="field">
           <label for="cadNome">Nome completo</label>
           <input type="text" id="cadNome" required autocomplete="name">
         </div>
 
-        <div class="field" id="campoCodigoConvite" style="display:none;">
-          <label for="cadCodigo">Código de convite</label>
-          <input type="text" id="cadCodigo" maxlength="6" style="text-transform:uppercase;">
-          <div class="hint">Peça esse código ao consultor responsável pelo edifício.</div>
-        </div>
-
-        <div class="field" id="campoTelefone">
+        <div class="field">
           <label for="cadTelefone">Telefone</label>
           <input type="tel" id="cadTelefone" autocomplete="tel">
         </div>
@@ -85,23 +72,13 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=43"></script>
+<script src="assets/js/supabase-client.js?v=44"></script>
 <script>
-let tipoCadastro = 'consultor';
-
 function mudarAba(aba) {
   document.getElementById('tabLogin').classList.toggle('active', aba === 'login');
   document.getElementById('tabCadastro').classList.toggle('active', aba === 'cadastro');
   document.getElementById('formLogin').style.display = aba === 'login' ? 'block' : 'none';
   document.getElementById('formCadastro').style.display = aba === 'cadastro' ? 'block' : 'none';
-}
-
-function mudarTipoCadastro(tipo) {
-  tipoCadastro = tipo;
-  document.getElementById('tabConsultor').classList.toggle('active', tipo === 'consultor');
-  document.getElementById('tabAjudante').classList.toggle('active', tipo === 'ajudante');
-  document.getElementById('campoCodigoConvite').style.display = tipo === 'ajudante' ? 'block' : 'none';
-  document.getElementById('campoTelefone').style.display = tipo === 'consultor' ? 'block' : 'none';
 }
 
 // Se já tiver sessão ativa, manda direto pro painel
@@ -136,16 +113,9 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
   const senha = document.getElementById('cadSenha').value;
   const confirmarSenha = document.getElementById('cadConfirmarSenha').value;
   const telefone = document.getElementById('cadTelefone').value.trim();
-  const codigo = document.getElementById('cadCodigo').value.trim();
 
   if (senha !== confirmarSenha) {
     toast('As senhas não são iguais. Confira e tente de novo.', 'error');
-    setBtnLoading(btn, false, 'Criar minha conta');
-    return;
-  }
-
-  if (tipoCadastro === 'ajudante' && !codigo) {
-    toast('Informe o código de convite do consultor.', 'error');
     setBtnLoading(btn, false, 'Criar minha conta');
     return;
   }
@@ -177,23 +147,13 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
     return;
   }
 
-  if (tipoCadastro === 'consultor') {
-    const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
-    if (error || data?.erro) {
-      toast('Erro ao finalizar cadastro: ' + (error?.message || data?.erro || 'desconhecido'), 'error');
-      setBtnLoading(btn, false, 'Criar minha conta');
-      return;
-    }
-    toast('Conta criada! Seu código de convite para ajudantes: ' + data.codigo_convite, 'success');
-  } else {
-    const { data, error } = await sb.rpc('csd_rpc_signup_ajudante', { p_codigo: codigo, p_nome: nome });
-    if (error || data?.erro === 'codigo_invalido') {
-      toast('Erro: ' + (error?.message || 'código de convite inválido'), 'error');
-      setBtnLoading(btn, false, 'Criar minha conta');
-      return;
-    }
-    toast('Conta criada! Vinculado a ' + data.consultor_nome, 'success');
+  const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
+  if (error || data?.erro) {
+    toast('Erro ao finalizar cadastro: ' + (error?.message || data?.erro || 'desconhecido'), 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    return;
   }
+  toast('Conta criada com sucesso!', 'success');
 
   setTimeout(() => { window.location.href = 'painel.html'; }, 1200);
 });

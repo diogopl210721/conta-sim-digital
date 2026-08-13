@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=43">
+<link rel="stylesheet" href="assets/css/style.css?v=44">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -24,19 +22,13 @@
         <p style="font-size:14px;">Sua conta de acesso já existe, mas o cadastro do perfil não chegou a ser concluído da última vez. Só precisa completar mais uma vez:</p>
 
         <div class="tabs" style="margin: 16px 0;">
-          <div class="tab active" id="tabRecConsultor" onclick="mudarTipoRecuperacao('consultor')">Sou consultor</div>
-          <div class="tab" id="tabRecAjudante" onclick="mudarTipoRecuperacao('ajudante')">Sou ajudante</div>
+          <div class="tab active" id="tabRecConsultor">Sou consultor</div>
         </div>
 
         <form id="formRecuperacaoPerfil">
           <div class="field">
             <label for="recNome">Nome completo</label>
             <input type="text" id="recNome" required>
-          </div>
-          <div class="field" id="recCampoCodigo" style="display:none;">
-            <label for="recCodigo">Código de convite</label>
-            <input type="text" id="recCodigo" maxlength="6" style="text-transform:uppercase;">
-            <div class="hint">Peça esse código ao consultor responsável pelo edifício.</div>
           </div>
           <div class="field" id="recCampoTelefone">
             <label for="recTelefone">Telefone</label>
@@ -52,16 +44,9 @@
       <div style="display:flex; justify-content:space-between; align-items:flex-start;">
         <div>
           <h3 id="perfilNome" style="margin-bottom:2px;"></h3>
-          <p class="muted" id="perfilTipo" style="margin:0; font-size:14px;"></p>
+          <p class="muted" style="margin:0; font-size:14px;">Responsável pelos condomínios abaixo</p>
         </div>
-        <span class="badge badge-neutral" id="perfilBadge"></span>
-      </div>
-      <div id="conviteBox" style="display:none; margin-top:16px; padding-top:16px; border-top:1px solid var(--border);">
-        <p style="margin-bottom:8px; font-size:14px;">Código de convite (para seus ajudantes):</p>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <span class="mono" style="font-size:22px; font-weight:700; letter-spacing:3px; color: var(--flame-dark);" id="codigoConvite"></span>
-          <button class="btn btn-outline btn-sm" onclick="copiarParaAreaTransferencia(document.getElementById('codigoConvite').textContent)">Copiar</button>
-        </div>
+        <span class="badge badge-neutral">Consultor</span>
       </div>
     </div>
 
@@ -157,7 +142,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=43"></script>
+<script src="assets/js/supabase-client.js?v=44"></script>
 <script>
 let perfilAtual = null;
 
@@ -175,16 +160,6 @@ async function carregarPainel() {
 
   document.getElementById('perfilInfo').style.display = 'block';
   document.getElementById('perfilNome').textContent = perfilAtual.nome;
-  document.getElementById('perfilBadge').textContent = perfilAtual.tipo === 'consultor' ? 'Consultor' : 'Ajudante';
-
-  if (perfilAtual.tipo === 'consultor') {
-    document.getElementById('perfilTipo').textContent = 'Responsável pelos condomínios abaixo';
-    document.getElementById('conviteBox').style.display = 'block';
-    document.getElementById('codigoConvite').textContent = perfilAtual.codigo_convite;
-  } else {
-    document.getElementById('perfilTipo').textContent = 'Ajudando na coleta de dados';
-    document.getElementById('btnNovoCondominio').style.display = 'none';
-  }
 
   await carregarCondominios();
 }
@@ -348,15 +323,6 @@ function mostrarRecuperacaoPerfil() {
   document.getElementById('conteudoPainel').style.display = 'none';
 }
 
-let tipoRecuperacao = 'consultor';
-function mudarTipoRecuperacao(tipo) {
-  tipoRecuperacao = tipo;
-  document.getElementById('tabRecConsultor').classList.toggle('active', tipo === 'consultor');
-  document.getElementById('tabRecAjudante').classList.toggle('active', tipo === 'ajudante');
-  document.getElementById('recCampoCodigo').style.display = tipo === 'ajudante' ? 'block' : 'none';
-  document.getElementById('recCampoTelefone').style.display = tipo === 'consultor' ? 'block' : 'none';
-}
-
 document.getElementById('formRecuperacaoPerfil').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('btnRecuperarPerfil');
@@ -364,31 +330,14 @@ document.getElementById('formRecuperacaoPerfil').addEventListener('submit', asyn
 
   const nome = document.getElementById('recNome').value.trim();
   const telefone = document.getElementById('recTelefone').value.trim();
-  const codigo = document.getElementById('recCodigo').value.trim();
 
-  if (tipoRecuperacao === 'ajudante' && !codigo) {
-    toast('Informe o código de convite do consultor.', 'error');
+  const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
+  if (error || data?.erro) {
+    toast('Erro: ' + (error?.message || data?.erro), 'error');
     setBtnLoading(btn, false, 'Concluir cadastro');
     return;
   }
-
-  if (tipoRecuperacao === 'consultor') {
-    const { data, error } = await sb.rpc('csd_rpc_signup_consultor', { p_nome: nome, p_telefone: telefone });
-    if (error || data?.erro) {
-      toast('Erro: ' + (error?.message || data?.erro), 'error');
-      setBtnLoading(btn, false, 'Concluir cadastro');
-      return;
-    }
-    toast('Cadastro concluído! Código de convite: ' + data.codigo_convite, 'success');
-  } else {
-    const { data, error } = await sb.rpc('csd_rpc_signup_ajudante', { p_codigo: codigo, p_nome: nome });
-    if (error || data?.erro === 'codigo_invalido') {
-      toast('Erro: código de convite inválido.', 'error');
-      setBtnLoading(btn, false, 'Concluir cadastro');
-      return;
-    }
-    toast('Cadastro concluído! Vinculado a ' + data.consultor_nome, 'success');
-  }
+  toast('Cadastro concluído!', 'success');
 
   setTimeout(() => window.location.reload(), 1200);
 });

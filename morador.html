@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=43">
+<link rel="stylesheet" href="assets/css/style.css?v=44">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -188,7 +186,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=43"></script>
+<script src="assets/js/supabase-client.js?v=44"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -196,6 +194,7 @@ const token = params.get('token');
 let condominioId = null;
 let unidadeId = null;
 let identificacaoUnidade = null;
+let numeroSerieUnidade = null;
 let moradorId = null;
 let docBase64 = null, docMediaType = null;
 let selfieBase64 = null, selfieMediaType = null;
@@ -212,8 +211,12 @@ function mostrarEtapa(nome, passoVisual) {
 function atualizarFaixaUnidade() {
   const faixa = document.getElementById('faixaUnidade');
   if (!faixa) return;
-  faixa.textContent = identificacaoUnidade ? `Unidade: ${identificacaoUnidade}` : '';
-  faixa.style.display = identificacaoUnidade ? 'block' : 'none';
+  const texto = [
+    identificacaoUnidade ? `Unidade: ${identificacaoUnidade}` : null,
+    numeroSerieUnidade ? `Medidor: ${numeroSerieUnidade}` : null,
+  ].filter(Boolean).join('  ·  ');
+  faixa.textContent = texto;
+  faixa.style.display = texto ? 'block' : 'none';
 }
 
 function atualizarDial(passo) {
@@ -242,6 +245,7 @@ async function iniciar() {
   if (data.tipo === 'unidade') {
     unidadeId = data.unidade_id;
     identificacaoUnidade = [data.torre, data.bloco, data.apto].filter(Boolean).join(' / ');
+    numeroSerieUnidade = data.medidor_numero_serie || null;
     if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
     mostrarEtapa('cpf', 1);
   } else {
@@ -271,6 +275,7 @@ async function confirmarUnidade() {
   if (error) { toast('Erro ao localizar unidade.', 'error'); return; }
   unidadeId = data.unidade_id;
   identificacaoUnidade = [torre, bloco, apto].filter(Boolean).join(' / ');
+  numeroSerieUnidade = data.medidor_numero_serie || null;
   if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
   mostrarEtapa('cpf', 1);
 }
@@ -596,7 +601,7 @@ async function continuarAposDocumento() {
   if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere === false) {
     document.getElementById('avisoNomeDoc').style.display = 'block';
     document.getElementById('avisoNomeDoc').textContent =
-      `O nome lido no documento ("${verificacaoNome.nome_extraido}") não confere com o nome cadastrado ("${document.getElementById('confNome').value.trim()}"). Tire a foto novamente, bem legível, ou confira se digitou seu nome certo na etapa anterior.`;
+      'Documento não confere com o nome cadastrado. Refazer a captura ou voltar para conferir o nome.';
     return;
   }
 

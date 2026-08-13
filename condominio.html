@@ -3,10 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=43">
+<link rel="stylesheet" href="assets/css/style.css?v=44">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -114,7 +112,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=43"></script>
+<script src="assets/js/supabase-client.js?v=44"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -736,7 +734,7 @@ async function exportarExcel(btn) {
   });
 
   // Linhas de dados
-  let totalCapturados = 0, totalValidados = 0;
+  let totalCapturados = 0, totalValidados = 0, totalCompletas = 0;
   for (const u of (unidades || [])) {
     const morador = (u.csd_moradores || [])[0];
     const validacao = maisRecente(morador?.csd_validacoes);
@@ -745,6 +743,7 @@ async function exportarExcel(btn) {
     const validadoOk = validacao?.status === 'validado';
     if (medidorOk) totalCapturados++;
     if (validadoOk) totalValidados++;
+    if (medidorOk && validadoOk) totalCompletas++;
 
     const row = sheet.addRow([
       u.torre || '', u.bloco || '', u.apto,
@@ -777,23 +776,76 @@ async function exportarExcel(btn) {
 
   sheet.autoFilter = { from: 'A5', to: `K${5 + (unidades || []).length}` };
 
-  // Aba resumo
+  // ---------- Aba Resumo (layout tipo dashboard) ----------
+  const totalUnidades = (unidades || []).length;
+  const pctConcluido = totalUnidades > 0 ? Math.round((totalCompletas / totalUnidades) * 100) : 0;
+  const corPct = pctConcluido === 100 ? SUCCESS : pctConcluido === 0 ? NEUTRAL_TXT : WARNING_TXT;
+  const fundoPct = pctConcluido === 100 ? SUCCESS : pctConcluido === 0 ? 'FFF0F1F4' : WARNING;
+
   const resumo = workbook.addWorksheet('Resumo');
-  resumo.columns = [{ width: 28 }, { width: 16 }];
-  resumo.mergeCells('A1:B1');
-  resumo.getCell('A1').value = condominioAtual?.nome || '';
-  resumo.getCell('A1').font = { bold: true, size: 14, color: { argb: NAVY } };
-  resumo.addRow([]);
-  const linhasResumo = [
-    ['Total de unidades', (unidades || []).length],
-    ['Medidores capturados', totalCapturados],
-    ['Moradores validados', totalValidados],
-    ['Gerado em', new Date().toLocaleString('pt-BR')],
+  resumo.columns = [{ width: 4 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 20 }, { width: 4 }];
+
+  // Faixa de topo com a cor da marca
+  resumo.mergeCells('A1:F1');
+  resumo.getRow(1).height = 8;
+  resumo.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAME } };
+
+  // Logo + título
+  try {
+    const resp = await fetch('assets/img/logo-consigaz.png');
+    const buf = await resp.arrayBuffer();
+    const imageId = workbook.addImage({ buffer: buf, extension: 'png' });
+    resumo.addImage(imageId, { tl: { col: 0.15, row: 1.15 }, ext: { width: 148, height: 35 } });
+  } catch (e) { /* segue sem logo se falhar o fetch */ }
+
+  resumo.mergeCells('B2:F3');
+  const tituloResumo = resumo.getCell('B2');
+  tituloResumo.value = `Resumo — ${condominioAtual?.nome || ''}`;
+  tituloResumo.font = { name: 'Calibri', size: 16, bold: true, color: { argb: NAVY } };
+  tituloResumo.alignment = { vertical: 'bottom', horizontal: 'right' };
+
+  resumo.mergeCells('B4:F4');
+  const subResumo = resumo.getCell('B4');
+  subResumo.value = `Gerado em ${new Date().toLocaleString('pt-BR')}`;
+  subResumo.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
+  subResumo.alignment = { horizontal: 'right' };
+
+  resumo.getRow(2).height = 20;
+  resumo.getRow(3).height = 20;
+
+  // Cartões de indicadores (linha 6-10)
+  const cartoes = [
+    { titulo: 'TOTAL DE UNIDADES', valor: totalUnidades, cor: NAVY, fundo: 'FFEFF3F8' },
+    { titulo: 'MEDIDORES CAPTURADOS', valor: totalCapturados, cor: SUCCESS_TXT, fundo: SUCCESS },
+    { titulo: 'MORADORES VALIDADOS', valor: totalValidados, cor: SUCCESS_TXT, fundo: SUCCESS },
+    { titulo: '% CONCLUÍDO', valor: `${pctConcluido}%`, cor: corPct, fundo: fundoPct },
   ];
-  for (const [label, valor] of linhasResumo) {
-    const r = resumo.addRow([label, valor]);
-    r.getCell(1).font = { bold: true, color: { argb: NAVY } };
-  }
+  const colunasCartoes = ['B', 'C', 'D', 'E'];
+  cartoes.forEach((c, i) => {
+    const col = colunasCartoes[i];
+    resumo.mergeCells(`${col}6:${col}7`);
+    resumo.mergeCells(`${col}8:${col}9`);
+    const celTitulo = resumo.getCell(`${col}6`);
+    celTitulo.value = c.titulo;
+    celTitulo.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF8A93A6' } };
+    celTitulo.alignment = { vertical: 'bottom', horizontal: 'center', wrapText: true };
+    const celValor = resumo.getCell(`${col}8`);
+    celValor.value = c.valor;
+    celValor.font = { name: 'Calibri', size: 22, bold: true, color: { argb: c.cor } };
+    celValor.alignment = { vertical: 'top', horizontal: 'center' };
+    for (let linha = 6; linha <= 9; linha++) {
+      resumo.getCell(`${col}${linha}`).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: c.fundo } };
+    }
+  });
+  resumo.getRow(6).height = 16;
+  resumo.getRow(7).height = 8;
+  resumo.getRow(8).height = 30;
+  resumo.getRow(9).height = 10;
+
+  // Rodapé
+  resumo.mergeCells('B11:F11');
+  resumo.getCell('B11').value = 'Consigaz Distribuidora de Gás LTDA — Sistema Conta Sim Digital';
+  resumo.getCell('B11').font = { size: 9, italic: true, color: { argb: 'FF8A93A6' } };
 
   const arrayBuffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([arrayBuffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
