@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=44">
+<link rel="stylesheet" href="assets/css/style.css?v=45">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -23,7 +23,7 @@
       <div class="label" id="dialLabel">1/5</div>
     </div>
 
-    <div id="faixaUnidade" class="center-text" style="display:none; font-weight:700; color: var(--navy-900); background: var(--flame-light); border-radius: 999px; padding: 8px 16px; margin: 0 auto 20px; width: fit-content; font-size: 14px;"></div>
+    <div id="faixaUnidade" class="center-text" style="display:none; font-weight:700; color: var(--navy-900); background: var(--flame-light); border-radius: 14px; padding: 8px 16px; margin: 0 auto 20px; width: fit-content; font-size: 14px; line-height: 1.5;"></div>
 
     <!-- ETAPA: carregando -->
     <div id="etapaCarregando" class="center-text">
@@ -186,7 +186,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=44"></script>
+<script src="assets/js/supabase-client.js?v=45"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -196,7 +196,7 @@ let unidadeId = null;
 let identificacaoUnidade = null;
 let numeroSerieUnidade = null;
 let moradorId = null;
-let docBase64 = null, docMediaType = null;
+let docBase64 = null, docMediaType = null, docUrl = null;
 let selfieBase64 = null, selfieMediaType = null;
 let verificacaoNome = {};
 
@@ -211,12 +211,12 @@ function mostrarEtapa(nome, passoVisual) {
 function atualizarFaixaUnidade() {
   const faixa = document.getElementById('faixaUnidade');
   if (!faixa) return;
-  const texto = [
+  const linhas = [
     identificacaoUnidade ? `Unidade: ${identificacaoUnidade}` : null,
     numeroSerieUnidade ? `Medidor: ${numeroSerieUnidade}` : null,
-  ].filter(Boolean).join('  ·  ');
-  faixa.textContent = texto;
-  faixa.style.display = texto ? 'block' : 'none';
+  ].filter(Boolean);
+  faixa.innerHTML = linhas.map(l => `<div>${l}</div>`).join('');
+  faixa.style.display = linhas.length ? 'block' : 'none';
 }
 
 function atualizarDial(passo) {
@@ -229,6 +229,7 @@ function atualizarDial(passo) {
 
 async function iniciar() {
   if (!token) { mostrarErro('Link não informado.'); return; }
+  if (restaurarProgresso()) return;
 
   const { data, error } = await sb.rpc('csd_rpc_resolver_link', { p_token: token });
   if (error || data?.erro) {
@@ -342,6 +343,7 @@ async function salvarConfirmacao() {
     p_morador_id: moradorId, p_nome: nome, p_cpf: cpf, p_email: email, p_telefone: telefone, p_data_nascimento: nascimento
   });
   if (error) { toast('Erro ao salvar dados.', 'error'); return; }
+  salvarProgresso('documento');
   mostrarEtapa('documento', 3);
 }
 
@@ -593,12 +595,11 @@ async function continuarAposDocumento() {
     verificacaoNome = {};
   }
 
-  setBtnLoading(btn, false, 'Continuar');
-
   // Só bloqueia quando a IA conseguiu ler um nome e ele realmente não bate.
   // Se não conseguiu ler nada (foto ruim, documento diferente), deixa seguir
   // para não travar morador legítimo por causa de OCR falho.
   if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere === false) {
+    setBtnLoading(btn, false, 'Continuar');
     document.getElementById('avisoNomeDoc').style.display = 'block';
     document.getElementById('avisoNomeDoc').textContent =
       'Documento não confere com o nome cadastrado. Refazer a captura ou voltar para conferir o nome.';
@@ -607,8 +608,20 @@ async function continuarAposDocumento() {
 
   document.getElementById('avisoNomeDoc').style.display = 'none';
 
-  // Mostra confirmação visual em vez de avançar direto — a pessoa confere e
-  // decide quando seguir para a próxima etapa
+  // Envia o documento pro servidor já nessa etapa (não espera até o final) —
+  // assim, se a conexão cair antes da selfie, o documento não se perde
+  try {
+    docUrl = await uploadFoto(docBase64, docMediaType, 'documentos');
+  } catch (e) {
+    setBtnLoading(btn, false, 'Continuar');
+    toast('Erro ao enviar o documento. Verifique sua conexão e tente novamente.', 'error');
+    return;
+  }
+  salvarProgresso('selfie');
+
+  setBtnLoading(btn, false, 'Continuar');
+
+  // Mostra confirmação visual e espera a pessoa tocar pra seguir — não avança sozinho
   const textoConfirmacao = document.getElementById('textoConfirmacaoDoc');
   if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere) {
     textoConfirmacao.textContent = `✓ Documento validado — nome "${verificacaoNome.nome_extraido}" confere com o cadastro`;
@@ -617,7 +630,6 @@ async function continuarAposDocumento() {
   }
   document.getElementById('confirmacaoDocOk').style.display = 'block';
   document.getElementById('btnContinuarDoc').style.display = 'none';
-  irParaSelfie();
 }
 
 async function uploadFoto(base64, mediaType, prefixo) {
@@ -634,14 +646,12 @@ async function finalizar() {
   setBtnLoading(btn, true);
   pararCamera('Selfie');
   try {
-    const [docUrl, selfieUrl] = await Promise.all([
-      uploadFoto(docBase64, docMediaType, 'documentos'),
-      uploadFoto(selfieBase64, selfieMediaType, 'selfies'),
-    ]);
+    // O documento já foi enviado na etapa anterior — só falta a selfie agora
+    const selfieUrl = await uploadFoto(selfieBase64, selfieMediaType, 'selfies');
 
     // Verificação de identidade: nome do documento + comparação facial.
-    // Roda em paralelo com o salvamento; se falhar por qualquer motivo, não trava
-    // o cadastro do morador — vira apenas um sinal a menos para o consultor auditar.
+    // Se falhar por qualquer motivo, não trava o cadastro do morador — vira
+    // apenas um sinal a menos para o consultor auditar.
     let verificacao = {};
     try {
       const resp = await fetch('https://arffptuclrrzuzdrcmuc.supabase.co/functions/v1/csd-verificar-identidade', {
@@ -666,10 +676,69 @@ async function finalizar() {
     });
     if (error) throw error;
 
+    limparProgresso();
     mostrarEtapa('concluido', 5);
   } catch (err) {
     toast('Erro ao concluir. Tente novamente.', 'error');
     setBtnLoading(btn, false, 'Concluir cadastro');
+  }
+}
+
+// ---------- Retomar progresso (se a conexão cair ou a pessoa fechar o navegador no meio) ----------
+function chaveProgresso() { return 'csd_progresso_' + token; }
+
+function salvarProgresso(etapa) {
+  try {
+    localStorage.setItem(chaveProgresso(), JSON.stringify({
+      etapa, condominioId, unidadeId, moradorId, identificacaoUnidade, numeroSerieUnidade,
+      nome: document.getElementById('confNome')?.value || '',
+      cpf: document.getElementById('confCpf')?.value || '',
+      nascimento: document.getElementById('confNascimento')?.value || '',
+      email: document.getElementById('confEmail')?.value || '',
+      telefone: document.getElementById('confTelefone')?.value || '',
+      docUrl, docMediaType,
+      salvoEm: Date.now(),
+    }));
+  } catch (e) { /* localStorage indisponível (ex: modo privado) - segue sem persistir */ }
+}
+
+function limparProgresso() {
+  try { localStorage.removeItem(chaveProgresso()); } catch (e) {}
+}
+
+// Retorna true se conseguiu retomar de onde parou (e já mostrou a etapa certa)
+function restaurarProgresso() {
+  try {
+    const bruto = localStorage.getItem(chaveProgresso());
+    if (!bruto) return false;
+    const p = JSON.parse(bruto);
+
+    // Progresso salvo há mais de 24h: descarta, mais seguro recomeçar do zero
+    if (!p.salvoEm || Date.now() - p.salvoEm > 24 * 60 * 60 * 1000) { limparProgresso(); return false; }
+    if (!p.moradorId || !p.unidadeId) return false;
+
+    condominioId = p.condominioId; unidadeId = p.unidadeId; moradorId = p.moradorId;
+    identificacaoUnidade = p.identificacaoUnidade; numeroSerieUnidade = p.numeroSerieUnidade;
+    docUrl = p.docUrl || null; docMediaType = p.docMediaType || null;
+    document.getElementById('confNome').value = p.nome || '';
+    document.getElementById('confCpf').value = p.cpf || '';
+    document.getElementById('confNascimento').value = p.nascimento || '';
+    document.getElementById('confEmail').value = p.email || '';
+    document.getElementById('confTelefone').value = p.telefone || '';
+
+    if (p.etapa === 'selfie' && docUrl) {
+      toast('Continuando de onde você parou...', 'success');
+      mostrarEtapa('selfie', 4);
+      return true;
+    }
+    if (p.etapa === 'documento') {
+      toast('Continuando de onde você parou...', 'success');
+      mostrarEtapa('documento', 3);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    return false;
   }
 }
 

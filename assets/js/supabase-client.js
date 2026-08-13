@@ -98,6 +98,10 @@ function ligarCalendario(idCampo) {
   calInput.addEventListener('click', () => {
     const valorAtual = paraInputDate(textInput.value);
     if (valorAtual) calInput.value = valorAtual;
+    // No desktop, o navegador só abre o calendário se o clique cair exatamente
+    // no ícone nativo (bem pequeno); forçar showPicker() garante que qualquer
+    // clique dentro da área abra o seletor, tanto no desktop quanto no celular
+    try { calInput.showPicker(); } catch (e) { /* navegador sem suporte: segue sem travar */ }
   });
 }
 
