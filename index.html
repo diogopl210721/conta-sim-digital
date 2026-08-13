@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Conta Sim Digital — Consigaz</title>
-<link rel="stylesheet" href="assets/css/style.css?v=47">
+<link rel="stylesheet" href="assets/css/style.css?v=48">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body style="background: var(--navy-900);">
@@ -55,6 +55,10 @@
           <input type="email" id="cadEmail" required autocomplete="email">
         </div>
         <div class="field">
+          <label for="cadConfirmarEmail">Confirmar e-mail</label>
+          <input type="email" id="cadConfirmarEmail" required autocomplete="email">
+        </div>
+        <div class="field">
           <label for="cadSenha">Senha</label>
           <input type="password" id="cadSenha" required minlength="6" autocomplete="new-password">
           <div class="hint">Mínimo de 6 caracteres.</div>
@@ -72,7 +76,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=47"></script>
+<script src="assets/js/supabase-client.js?v=48"></script>
 <script>
 function mudarAba(aba) {
   document.getElementById('tabLogin').classList.toggle('active', aba === 'login');
@@ -110,9 +114,16 @@ document.getElementById('formCadastro').addEventListener('submit', async (e) => 
 
   const nome = document.getElementById('cadNome').value.trim();
   const email = document.getElementById('cadEmail').value.trim();
+  const confirmarEmail = document.getElementById('cadConfirmarEmail').value.trim();
   const senha = document.getElementById('cadSenha').value;
   const confirmarSenha = document.getElementById('cadConfirmarSenha').value;
   const telefone = document.getElementById('cadTelefone').value.trim();
+
+  if (email.toLowerCase() !== confirmarEmail.toLowerCase()) {
+    toast('Os e-mails não são iguais. Confira e tente de novo.', 'error');
+    setBtnLoading(btn, false, 'Criar minha conta');
+    return;
+  }
 
   if (senha !== confirmarSenha) {
     toast('As senhas não são iguais. Confira e tente de novo.', 'error');
