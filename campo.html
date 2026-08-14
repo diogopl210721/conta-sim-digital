@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Leitura em campo — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=48">
+<link rel="stylesheet" href="assets/css/style.css?v=49">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -54,7 +54,7 @@
       </div>
       <div class="field">
         <label for="leituraM3">Leitura (m³)</label>
-        <input type="text" id="leituraM3" class="mono digit-input" inputmode="decimal">
+        <input type="text" id="leituraM3" class="mono digit-input" style="font-size:26px; letter-spacing:3px;" inputmode="decimal">
         <div class="hint">Confira o valor extraído antes de salvar.</div>
       </div>
     </div>
@@ -68,7 +68,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=48"></script>
+<script src="assets/js/supabase-client.js?v=49"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 let unidadeId = params.get('unidade');
