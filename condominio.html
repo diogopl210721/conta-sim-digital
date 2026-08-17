@@ -706,6 +706,16 @@ function escapeHtml(str) {
 
 // ---------- Exportação (Excel profissional com logo e formatação) ----------
 async function exportarExcel(btn) {
+  // Formata a leitura do medidor exatamente como o padrão da empresa: 5 dígitos
+  // inteiros com zeros à esquerda + vírgula + 3 casas decimais (ex: 00037,801).
+  // Escrito como texto puro (não número), pra não depender de nenhuma
+  // formatação/locale do Excel — fica idêntico em qualquer computador.
+  function formatarLeituraM3(valor) {
+    if (valor === null || valor === undefined || valor === '') return '';
+    const partes = Number(valor).toFixed(3).split('.');
+    return `${partes[0].padStart(5, '0')},${partes[1]}`;
+  }
+
   if (btn) setBtnLoading(btn, true);
 
   const { data: unidades } = await sb.from('csd_unidades')
@@ -741,22 +751,29 @@ async function exportarExcel(btn) {
   sheet.getRow(1).height = 8;
   sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAME } };
 
-  // Logo — posicionado do lado direito, junto com o resto do cabeçalho
+  // Logo — ao lado do texto "Conta Sim Digital", tudo alinhado à direita
   try {
     const resp = await fetch('assets/img/logo-consigaz.png');
     const buf = await resp.arrayBuffer();
     const imageId = workbook.addImage({ buffer: buf, extension: 'png' });
-    sheet.addImage(imageId, { tl: { col: 7.85, row: 1.15 }, ext: { width: 148, height: 35 } });
+    sheet.addImage(imageId, { tl: { col: 7.6, row: 1.12 }, ext: { width: 118, height: 28 } });
   } catch (e) { /* segue sem logo se falhar o fetch */ }
 
-  // Título: Conta Sim Digital — Nome do edifício
-  sheet.mergeCells('D2:K3');
-  const tituloCell = sheet.getCell('D2');
-  tituloCell.value = `Conta Sim Digital — ${condominioAtual?.nome || ''}`;
-  tituloCell.font = { name: 'Calibri', size: 15, bold: true, color: { argb: NAVY } };
-  tituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  // Linha 1: "Conta Sim Digital" (marca)
+  sheet.mergeCells('D2:K2');
+  const marcaCell = sheet.getCell('D2');
+  marcaCell.value = 'Conta Sim Digital';
+  marcaCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF8A93A6' } };
+  marcaCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  // Síndico(a) e telefone
+  // Linha 2: Nome do edifício (destaque principal)
+  sheet.mergeCells('D3:K3');
+  const nomeCell = sheet.getCell('D3');
+  nomeCell.value = condominioAtual?.nome || '';
+  nomeCell.font = { name: 'Calibri', size: 17, bold: true, color: { argb: NAVY } };
+  nomeCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  // Linha 3: Síndico(a) e telefone
   sheet.mergeCells('D4:K4');
   const sindicoCell = sheet.getCell('D4');
   const sindicoTexto = condominioAtual?.sindico_nome
@@ -766,15 +783,15 @@ async function exportarExcel(btn) {
   sindicoCell.font = { name: 'Calibri', size: 10.5, color: { argb: NAVY } };
   sindicoCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  // Endereço + data de geração
+  // Linha 4: Endereço do edifício
   sheet.mergeCells('D5:K5');
-  const subtituloCell = sheet.getCell('D5');
-  subtituloCell.value = `${condominioAtual?.endereco || ''} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`;
-  subtituloCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
-  subtituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  const enderecoCell = sheet.getCell('D5');
+  enderecoCell.value = [condominioAtual?.endereco, condominioAtual?.cidade].filter(Boolean).join(' — ');
+  enderecoCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
+  enderecoCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
-  sheet.getRow(2).height = 18;
-  sheet.getRow(3).height = 18;
+  sheet.getRow(2).height = 17;
+  sheet.getRow(3).height = 24;
   sheet.getRow(4).height = 16;
   sheet.getRow(5).height = 16;
 
@@ -804,7 +821,7 @@ async function exportarExcel(btn) {
     const row = sheet.addRow([
       u.torre || '', u.bloco || '', u.apto,
       morador?.nome || '', morador?.cpf || '', morador?.email || '', morador?.telefone || '',
-      medidor?.numero_serie || '', medidor?.leitura_m3 || '',
+      medidor?.numero_serie || '', formatarLeituraM3(medidor?.leitura_m3),
       medidorOk ? 'Capturado' : 'Pendente',
       validadoOk ? 'Validado' : (morador?.dados_confirmados ? 'Dados confirmados' : 'Aguardando'),
     ]);
@@ -813,9 +830,8 @@ async function exportarExcel(btn) {
       cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF14213D' } };
       cell.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
       cell.alignment = { vertical: 'middle' };
-      if (colNumber === 9 && medidor?.leitura_m3 != null) {
-        // Padrão da empresa: sempre mostrar os 5 dígitos antes da vírgula, com zeros à esquerda
-        cell.numFmt = '00000.000';
+      if (colNumber === 9) {
+        cell.font.name = 'Courier New';
         cell.alignment.horizontal = 'center';
       }
       if (colNumber === 10) {
