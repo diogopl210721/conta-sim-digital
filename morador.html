@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=54">
+<link rel="stylesheet" href="assets/css/style.css?v=55">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -113,6 +113,10 @@
       <p id="avisoMenorIdade" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:12px 14px; border-radius:10px; margin-bottom:12px;">
         A data de nascimento informada é de uma pessoa menor de idade. Como o cadastro precisa ser de um responsável, por favor informe aqui o <strong>nome, CPF e data de nascimento de um adulto responsável</strong> pela unidade — o documento e a selfie enviados nas próximas etapas também devem ser dessa pessoa.
       </p>
+      <label style="display:flex; align-items:flex-start; gap:10px; margin:18px 0; cursor:pointer;">
+        <input type="checkbox" id="checkVeracidade" style="width:20px; height:20px; margin-top:2px; flex-shrink:0; accent-color:var(--flame);">
+        <span style="font-size:14px; color:var(--ink-soft); line-height:1.4;">Declaro e afirmo que as informações acima são verdadeiras, e confirmo a veracidade dos dados informados.</span>
+      </label>
       <button class="btn btn-primary btn-block" onclick="salvarConfirmacao()">Confirmar dados</button>
     </div>
 
@@ -201,7 +205,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=54"></script>
+<script src="assets/js/supabase-client.js?v=55"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -356,6 +360,10 @@ async function salvarConfirmacao() {
   if (!nascimento) { toast('Informe sua data de nascimento.', 'error'); return; }
   if (!email) { toast('Informe seu e-mail.', 'error'); return; }
   if (!telefone) { toast('Informe seu telefone.', 'error'); return; }
+  if (!document.getElementById('checkVeracidade').checked) {
+    toast('Marque a declaração de veracidade dos dados para continuar.', 'error');
+    return;
+  }
 
   const idade = calcularIdade(nascimento);
   if (idade !== null && idade < 18) {
