@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=53">
+<link rel="stylesheet" href="assets/css/style.css?v=54">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -70,9 +70,10 @@
   <div class="card" style="width:100%; max-width:480px; border-radius:24px 24px 0 0; margin:0;">
     <h3>Novo condomínio</h3>
     <form id="formNovoCondominio">
-      <div class="field">
+      <div class="field" style="position:relative;">
         <label for="novoNome">Nome do condomínio</label>
-        <input type="text" id="novoNome" required>
+        <input type="text" id="novoNome" required autocomplete="off">
+        <div id="sugestoesNome" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:10px; margin-top:4px; max-height:220px; overflow-y:auto; z-index:20; box-shadow:0 8px 24px rgba(11,41,71,0.15);"></div>
       </div>
       <div class="field">
         <label for="novoEndereco">Endereço</label>
@@ -83,10 +84,11 @@
           <label for="novoCidade">Cidade</label>
           <input type="text" id="novoCidade">
         </div>
-        <div class="field" style="flex:1;">
+        <div class="field" style="flex:1; position:relative;">
           <label for="novoCodigoEdificio">Código do edifício</label>
-          <input type="text" id="novoCodigoEdificio">
-          <div class="hint">Opcional</div>
+          <input type="text" id="novoCodigoEdificio" autocomplete="off">
+          <div class="hint">Opcional — ou busque pelo nome acima</div>
+          <div id="sugestoesCodigo" style="display:none; position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--border); border-radius:10px; margin-top:4px; max-height:220px; overflow-y:auto; z-index:20; box-shadow:0 8px 24px rgba(11,41,71,0.15);"></div>
         </div>
       </div>
       <div style="display:flex; gap:10px; margin-top:8px;">
@@ -127,7 +129,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=53"></script>
+<script src="assets/js/supabase-client.js?v=54"></script>
 <script>
 let perfilAtual = null;
 
@@ -304,6 +306,53 @@ function mostrarRecuperacaoPerfil() {
   document.getElementById('recuperacaoPerfil').style.display = 'block';
   document.getElementById('conteudoPainel').style.display = 'none';
 }
+
+// ---------- Busca no catálogo de edifícios (autocompletar) ----------
+function preencherComEdificio(ed) {
+  document.getElementById('novoNome').value = ed.nome;
+  document.getElementById('novoEndereco').value = [ed.endereco, ed.bairro].filter(Boolean).join(', ');
+  document.getElementById('novoCidade').value = ed.cidade || 'Curitiba';
+  document.getElementById('novoCodigoEdificio').value = ed.codigo_edificio || '';
+  document.getElementById('sugestoesNome').style.display = 'none';
+  document.getElementById('sugestoesCodigo').style.display = 'none';
+  if (ed.sindico_nome) {
+    toast(`Preenchido automaticamente. Síndico: ${ed.sindico_nome}${ed.sindico_telefone ? ' — ' + ed.sindico_telefone : ''}`, 'success');
+  }
+}
+
+function renderizarSugestoes(container, lista) {
+  if (!lista || lista.length === 0) { container.style.display = 'none'; return; }
+  container.innerHTML = lista.map(ed => `
+    <div class="sugestao-edificio" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--border);">
+      <div style="font-weight:600; color:var(--navy-900); font-size:14px;">${escapeHtml(ed.nome)}</div>
+      <div class="muted" style="font-size:12px;">${escapeHtml(ed.bairro || '')} · Cód. ${escapeHtml(ed.codigo_edificio || '—')}</div>
+    </div>
+  `).join('');
+  [...container.children].forEach((el, i) => {
+    el.onclick = () => preencherComEdificio(lista[i]);
+  });
+  container.style.display = 'block';
+}
+
+let buscaEdificioTimeout = null;
+async function buscarEdificios(termo, container) {
+  clearTimeout(buscaEdificioTimeout);
+  if (!termo || termo.trim().length < 2) { container.style.display = 'none'; return; }
+  buscaEdificioTimeout = setTimeout(async () => {
+    const { data } = await sb.from('csd_catalogo_edificios')
+      .select('*')
+      .or(`nome.ilike.%${termo}%,codigo_edificio.ilike.%${termo}%`)
+      .limit(6);
+    renderizarSugestoes(container, data);
+  }, 200);
+}
+
+document.getElementById('novoNome').addEventListener('input', (e) => buscarEdificios(e.target.value, document.getElementById('sugestoesNome')));
+document.getElementById('novoCodigoEdificio').addEventListener('input', (e) => buscarEdificios(e.target.value, document.getElementById('sugestoesCodigo')));
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#novoNome') && !e.target.closest('#sugestoesNome')) document.getElementById('sugestoesNome').style.display = 'none';
+  if (!e.target.closest('#novoCodigoEdificio') && !e.target.closest('#sugestoesCodigo')) document.getElementById('sugestoesCodigo').style.display = 'none';
+});
 
 document.getElementById('formRecuperacaoPerfil').addEventListener('submit', async (e) => {
   e.preventDefault();
