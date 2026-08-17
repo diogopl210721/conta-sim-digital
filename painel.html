@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=49">
+<link rel="stylesheet" href="assets/css/style.css?v=50">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -89,14 +89,6 @@
           <div class="hint">Opcional</div>
         </div>
       </div>
-      <div class="field">
-        <label for="novoEstrutura">Estrutura do edifício</label>
-        <select id="novoEstrutura">
-          <option value="apto_simples">Só apartamentos (sem torre/bloco)</option>
-          <option value="torre_bloco_apto">Tem torre e/ou bloco</option>
-        </select>
-        <div class="hint">Se não tiver certeza, escolha "só apartamentos" — você importa a planilha na próxima tela e o sistema detecta automaticamente.</div>
-      </div>
       <div style="display:flex; gap:10px; margin-top:8px;">
         <button type="button" class="btn btn-outline" onclick="document.getElementById('modalNovo').style.display='none'">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btnCriarCondominio">Criar</button>
@@ -128,13 +120,6 @@
         <div class="hint">Opcional</div>
       </div>
     </div>
-    <div class="field">
-      <label for="editEstruturaCondominio">Estrutura do edifício</label>
-      <select id="editEstruturaCondominio">
-        <option value="apto_simples">Só apartamentos (sem torre/bloco)</option>
-        <option value="torre_bloco_apto">Tem torre e/ou bloco</option>
-      </select>
-    </div>
     <div style="display:flex; gap:10px; margin-top:8px;">
       <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditarCondominio').style.display='none'">Cancelar</button>
       <button type="button" class="btn btn-primary" id="btnSalvarEdicaoCondominio" onclick="salvarEdicaoCondominio()">Salvar</button>
@@ -142,7 +127,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=49"></script>
+<script src="assets/js/supabase-client.js?v=50"></script>
 <script>
 let perfilAtual = null;
 
@@ -252,7 +237,6 @@ function abrirEdicaoCondominio(c) {
   document.getElementById('editEnderecoCondominio').value = c.endereco || '';
   document.getElementById('editCidadeCondominio').value = c.cidade || '';
   document.getElementById('editCodigoEdificioCondominio').value = c.codigo_edificio || '';
-  document.getElementById('editEstruturaCondominio').value = c.estrutura;
   document.getElementById('modalEditarCondominio').style.display = 'flex';
 }
 
@@ -264,10 +248,9 @@ async function salvarEdicaoCondominio() {
   const endereco = document.getElementById('editEnderecoCondominio').value.trim();
   const cidade = document.getElementById('editCidadeCondominio').value.trim();
   const codigo_edificio = document.getElementById('editCodigoEdificioCondominio').value.trim();
-  const estrutura = document.getElementById('editEstruturaCondominio').value;
 
   const { error } = await sb.from('csd_condominios')
-    .update({ nome, endereco, cidade, codigo_edificio, estrutura })
+    .update({ nome, endereco, cidade, codigo_edificio })
     .eq('id', condominioEmEdicao.id);
 
   setBtnLoading(btn, false, 'Salvar');
@@ -303,10 +286,9 @@ document.getElementById('formNovoCondominio').addEventListener('submit', async (
   const endereco = document.getElementById('novoEndereco').value.trim();
   const cidade = document.getElementById('novoCidade').value.trim();
   const codigo_edificio = document.getElementById('novoCodigoEdificio').value.trim();
-  const estrutura = document.getElementById('novoEstrutura').value;
 
   const { data, error } = await sb.from('csd_condominios')
-    .insert({ nome, endereco, cidade, codigo_edificio, estrutura, consultor_id: perfilAtual.id })
+    .insert({ nome, endereco, cidade, codigo_edificio, consultor_id: perfilAtual.id })
     .select().single();
 
   setBtnLoading(btn, false, 'Criar');
