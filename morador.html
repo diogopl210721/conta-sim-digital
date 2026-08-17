@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=50">
+<link rel="stylesheet" href="assets/css/style.css?v=51">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -117,7 +117,7 @@
 
     <!-- ETAPA: foto documento -->
     <div id="etapaDocumento" style="display:none;">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="mostrarEtapa('confirmar', 2)" style="margin-bottom:4px; padding-left:0;">← Voltar e conferir os dados</button>
+      <button type="button" onclick="mostrarEtapa('confirmar', 2)" style="background:none; border:none; padding:0; margin-bottom:14px; font-size:13px; color:var(--ink-faint); cursor:pointer;">← voltar e conferir os dados</button>
       <h2>Foto do documento</h2>
       <p>Tire uma foto do seu RG ou CNH, ou envie um arquivo (imagem ou PDF).</p>
       <div class="photo-frame" id="frameDoc">
@@ -151,7 +151,7 @@
 
     <!-- ETAPA: selfie -->
     <div id="etapaSelfie" style="display:none;">
-      <button type="button" class="btn btn-ghost btn-sm" onclick="pararCamera('Selfie'); mostrarEtapa('documento', 3)" style="margin-bottom:4px; padding-left:0;">← Voltar ao documento</button>
+      <button type="button" onclick="pararCamera('Selfie'); mostrarEtapa('documento', 3)" style="background:none; border:none; padding:0; margin-bottom:14px; font-size:13px; color:var(--ink-faint); cursor:pointer;">← voltar ao documento</button>
       <h2>Agora, uma selfie</h2>
       <p>Isso confirma que é você mesmo concluindo o cadastro — precisa ser ao vivo, pela câmera.</p>
       <div class="photo-frame" id="frameSelfie">
@@ -200,7 +200,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=50"></script>
+<script src="assets/js/supabase-client.js?v=51"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
