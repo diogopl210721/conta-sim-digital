@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=55">
+<link rel="stylesheet" href="assets/css/style.css?v=56">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 </head>
 <body>
 <div class="app-shell wide">
@@ -30,8 +31,14 @@
       <div id="linkGeralBox" style="display:none; align-items:center; gap:10px; flex-wrap:wrap;">
         <input type="text" id="linkGeralInput" readonly class="mono" style="font-size:14px; flex:1; min-width:200px;">
         <button class="btn btn-outline btn-sm" onclick="copiarParaAreaTransferencia(document.getElementById('linkGeralInput').value)">Copiar</button>
+        <button class="btn btn-outline btn-sm" onclick="gerarQRCode('linkGeralInput', 'qrGeralBox')">📱 Gerar QR Code</button>
       </div>
       <button class="btn btn-secondary btn-sm" id="btnGerarLinkGeral" onclick="gerarLinkGeral()" style="margin-top:10px;">Gerar link geral</button>
+      <div id="qrGeralBox" style="display:none; margin-top:16px; text-align:center;">
+        <canvas id="qrGeralCanvas" style="max-width:220px; border:1px solid var(--border); border-radius:12px; padding:10px; background:#fff;"></canvas>
+        <p class="muted" style="font-size:12px; margin:8px 0 10px;">Pode imprimir e deixar afixado na portaria do edifício.</p>
+        <button class="btn btn-outline btn-sm" onclick="baixarQRCode('qrGeralCanvas', 'qrcode-geral')">⬇️ Baixar QR Code</button>
+      </div>
     </div>
 
     <!-- Importação de planilha -->
@@ -112,7 +119,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=55"></script>
+<script src="assets/js/supabase-client.js?v=56"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -152,6 +159,30 @@ async function gerarLinkGeral() {
   const url = `${window.location.origin}${window.location.pathname.replace('condominio.html','')}morador.html?token=${data.token}`;
   document.getElementById('linkGeralInput').value = url;
   document.getElementById('linkGeralBox').style.display = 'flex';
+  document.getElementById('qrGeralBox').style.display = 'none'; // link mudou, esconde QR antigo até gerar de novo
+}
+
+// Gera o QR Code (opcional) a partir do link já criado, num <canvas>.
+// idInputLink: input readonly com a URL. idBoxQr: container que mostra o canvas + botão de baixar.
+async function gerarQRCode(idInputLink, idBoxQr) {
+  const url = document.getElementById(idInputLink).value;
+  if (!url) { toast('Gere o link primeiro.', 'error'); return; }
+  const box = document.getElementById(idBoxQr);
+  const canvas = box.querySelector('canvas');
+  try {
+    await QRCode.toCanvas(canvas, url, { width: 220, margin: 1, color: { dark: '#0B2947', light: '#FFFFFF' } });
+    box.style.display = 'block';
+  } catch (e) {
+    toast('Erro ao gerar QR Code.', 'error');
+  }
+}
+
+function baixarQRCode(idCanvas, nomeArquivo) {
+  const canvas = document.getElementById(idCanvas);
+  const link = document.createElement('a');
+  link.download = `${nomeArquivo}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
 }
 
 function normalizar(s) {
