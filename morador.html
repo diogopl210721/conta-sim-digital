@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=52">
+<link rel="stylesheet" href="assets/css/style.css?v=53">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -64,6 +64,7 @@
 
     <!-- ETAPA: validar CPF -->
     <div id="etapaCpf" style="display:none;">
+      <button type="button" id="btnVoltarCpf" onclick="mostrarEtapa('localizar', 1)" style="display:none; align-items:center; gap:6px; background:var(--flame-light); border:none; border-radius:999px; padding:8px 16px; margin-bottom:14px; font-size:14px; font-weight:700; color:var(--navy-900); cursor:pointer;">← Voltar e corrigir a unidade</button>
       <h2>Confirme sua identidade</h2>
       <p>Para sua segurança, digite os <strong>3 últimos números</strong> do seu CPF.</p>
       <div class="field">
@@ -200,7 +201,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=52"></script>
+<script src="assets/js/supabase-client.js?v=53"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -292,6 +293,7 @@ async function confirmarUnidade() {
   identificacaoUnidade = [torre, bloco, apto].filter(Boolean).join(' / ');
   numeroSerieUnidade = data.medidor_numero_serie || null;
   if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
+  document.getElementById('btnVoltarCpf').style.display = 'inline-flex';
   mostrarEtapa('cpf', 1);
 }
 
