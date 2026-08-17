@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=57">
+<link rel="stylesheet" href="assets/css/style.css?v=58">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/dist/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 </head>
 <body>
 <div class="app-shell wide">
@@ -119,7 +119,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=57"></script>
+<script src="assets/js/supabase-client.js?v=58"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -169,6 +169,7 @@ function gerarQRCode(idInputLink, idBoxQr) {
   if (!url) { toast('Gere o link primeiro.', 'error'); return; }
   const box = document.getElementById(idBoxQr);
   try {
+    if (typeof qrcode !== 'function') throw new Error('biblioteca de QR Code não carregou');
     const qr = qrcode(0, 'M'); // 0 = detecta o tamanho automaticamente, M = correção média de erros
     qr.addData(url);
     qr.make();
@@ -176,7 +177,7 @@ function gerarQRCode(idInputLink, idBoxQr) {
     img.src = qr.createDataURL(8, 4); // 8px por módulo, margem de 4 módulos
     box.style.display = 'block';
   } catch (e) {
-    toast('Erro ao gerar QR Code.', 'error');
+    toast('Erro ao gerar QR Code: ' + e.message, 'error');
   }
 }
 
