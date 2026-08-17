@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=58">
+<link rel="stylesheet" href="assets/css/style.css?v=59">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -119,7 +119,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=58"></script>
+<script src="assets/js/supabase-client.js?v=59"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -728,7 +728,7 @@ async function exportarExcel(btn) {
   const BORDER = { style: 'thin', color: { argb: 'FFDCE1EA' } };
 
   const sheet = workbook.addWorksheet('Conta Sim Digital', {
-    views: [{ state: 'frozen', ySplit: 5 }],
+    views: [{ state: 'frozen', ySplit: 6 }],
   });
 
   const colunas = ['Torre', 'Bloco', 'Apto', 'Morador', 'CPF', 'E-mail', 'Telefone', 'Nº Série Medidor', 'Leitura (m³)', 'Status Medidor', 'Status Validação'];
@@ -741,23 +741,34 @@ async function exportarExcel(btn) {
   sheet.getRow(1).height = 8;
   sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAME } };
 
-  // Logo
+  // Logo — posicionado do lado direito, junto com o resto do cabeçalho
   try {
     const resp = await fetch('assets/img/logo-consigaz.png');
     const buf = await resp.arrayBuffer();
     const imageId = workbook.addImage({ buffer: buf, extension: 'png' });
-    sheet.addImage(imageId, { tl: { col: 0.15, row: 1.15 }, ext: { width: 148, height: 35 } });
+    sheet.addImage(imageId, { tl: { col: 7.85, row: 1.15 }, ext: { width: 148, height: 35 } });
   } catch (e) { /* segue sem logo se falhar o fetch */ }
 
-  // Título
+  // Título: Conta Sim Digital — Nome do edifício
   sheet.mergeCells('D2:K3');
   const tituloCell = sheet.getCell('D2');
   tituloCell.value = `Conta Sim Digital — ${condominioAtual?.nome || ''}`;
   tituloCell.font = { name: 'Calibri', size: 15, bold: true, color: { argb: NAVY } };
   tituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
 
+  // Síndico(a) e telefone
   sheet.mergeCells('D4:K4');
-  const subtituloCell = sheet.getCell('D4');
+  const sindicoCell = sheet.getCell('D4');
+  const sindicoTexto = condominioAtual?.sindico_nome
+    ? `Síndico(a): ${condominioAtual.sindico_nome}${condominioAtual?.sindico_telefone ? '  ·  ' + condominioAtual.sindico_telefone : ''}`
+    : '';
+  sindicoCell.value = sindicoTexto;
+  sindicoCell.font = { name: 'Calibri', size: 10.5, color: { argb: NAVY } };
+  sindicoCell.alignment = { vertical: 'middle', horizontal: 'right' };
+
+  // Endereço + data de geração
+  sheet.mergeCells('D5:K5');
+  const subtituloCell = sheet.getCell('D5');
   subtituloCell.value = `${condominioAtual?.endereco || ''} · Gerado em ${new Date().toLocaleDateString('pt-BR')}`;
   subtituloCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
   subtituloCell.alignment = { vertical: 'middle', horizontal: 'right' };
@@ -765,9 +776,10 @@ async function exportarExcel(btn) {
   sheet.getRow(2).height = 18;
   sheet.getRow(3).height = 18;
   sheet.getRow(4).height = 16;
+  sheet.getRow(5).height = 16;
 
-  // Cabeçalho da tabela
-  const headerRow = sheet.getRow(5);
+  // Cabeçalho da tabela (uma linha abaixo, por causa da linha nova do síndico)
+  const headerRow = sheet.getRow(6);
   headerRow.values = colunas;
   headerRow.height = 24;
   headerRow.eachCell(cell => {
@@ -801,6 +813,11 @@ async function exportarExcel(btn) {
       cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF14213D' } };
       cell.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
       cell.alignment = { vertical: 'middle' };
+      if (colNumber === 9 && medidor?.leitura_m3 != null) {
+        // Padrão da empresa: sempre mostrar os 5 dígitos antes da vírgula, com zeros à esquerda
+        cell.numFmt = '00000.000';
+        cell.alignment.horizontal = 'center';
+      }
       if (colNumber === 10) {
         cell.alignment.horizontal = 'center';
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: medidorOk ? SUCCESS : WARNING } };
