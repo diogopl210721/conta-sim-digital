@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=70">
+<link rel="stylesheet" href="assets/css/style.css?v=71">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -128,7 +128,7 @@
       </p>
       <label style="display:flex; align-items:flex-start; gap:10px; margin:18px 0; cursor:pointer;">
         <input type="checkbox" id="checkVeracidade" style="width:20px; height:20px; margin-top:2px; flex-shrink:0; accent-color:var(--flame);">
-        <span style="font-size:14px; color:var(--ink-soft); line-height:1.4;">Declaro e afirmo que as informações acima são verdadeiras, e confirmo a veracidade dos dados informados.</span>
+        <span style="font-size:14px; color:var(--ink-soft); line-height:1.4;">Declaro sob minha responsabilidade e sob as penas da lei, que são verdadeiras as informações prestadas nesta ficha para efeitos de cadastro e faturamento ref. ao serviços de fornecimento de GLP e outros prestados pela CONSIGAZ DISTRIBUIDORA DE GÁS LTDA.</span>
       </label>
       <button class="btn btn-primary btn-block" onclick="salvarConfirmacao()">Confirmar dados</button>
     </div>
@@ -218,7 +218,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=70"></script>
+<script src="assets/js/supabase-client.js?v=71"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -665,6 +665,7 @@ async function continuarAposDocumento() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome_cadastrado: document.getElementById('confNome').value.trim(),
+        cpf_cadastrado: document.getElementById('confCpf').value.trim(),
         doc_base64: docBase64, doc_media_type: docMediaType,
       }),
     });
@@ -673,14 +674,18 @@ async function continuarAposDocumento() {
     verificacaoNome = {};
   }
 
-  // Só bloqueia quando a IA conseguiu ler um nome e ele realmente não bate.
+  // Bloqueia se a IA leu o nome OU o CPF do documento e algum dos dois não bate
+  // com o que foi cadastrado. Exige conferência 100% fiel — não aceita parcial.
   // Se não conseguiu ler nada (foto ruim, documento diferente), deixa seguir
   // para não travar morador legítimo por causa de OCR falho.
-  if (verificacaoNome.nome_extraido && verificacaoNome.nome_confere === false) {
+  const nomeFalhou = verificacaoNome.nome_extraido && verificacaoNome.nome_confere === false;
+  const cpfFalhou = verificacaoNome.cpf_extraido && verificacaoNome.cpf_confere === false;
+  if (nomeFalhou || cpfFalhou) {
     setBtnLoading(btn, false, 'Continuar');
+    const campos = [nomeFalhou ? 'nome' : null, cpfFalhou ? 'CPF' : null].filter(Boolean).join(' e ');
     document.getElementById('avisoNomeDoc').style.display = 'block';
     document.getElementById('avisoNomeDoc').textContent =
-      'Documento não confere com o nome cadastrado. Refazer a captura ou voltar para conferir o nome.';
+      `Documento não confere com o ${campos} cadastrado(s). Refazer a captura ou voltar para conferir os dados.`;
     return;
   }
 
@@ -737,6 +742,7 @@ async function finalizar() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nome_cadastrado: document.getElementById('confNome').value.trim(),
+          cpf_cadastrado: document.getElementById('confCpf').value.trim(),
           doc_base64: docBase64, doc_media_type: docMediaType,
           selfie_base64: selfieBase64, selfie_media_type: selfieMediaType,
         }),
@@ -751,6 +757,9 @@ async function finalizar() {
       p_facial_avaliacao: verificacao.facial_avaliacao || null,
       p_facial_observacao: verificacao.facial_observacao || null,
       p_metodo_verificacao_facial: verificacao.metodo_verificacao_facial || null,
+      p_cpf_extraido: verificacao.cpf_extraido || null,
+      p_cpf_confere: verificacao.cpf_confere ?? null,
+      p_rg_extraido: verificacao.rg_extraido || null,
     });
     if (error) throw error;
 
@@ -821,6 +830,9 @@ function restaurarProgresso() {
 }
 
 ligarCalendario('confNascimento');
+ligarCalendario('zeroNascimento');
+ligarMascaraData('confNascimento');
+ligarMascaraData('zeroNascimento');
 iniciar();
 </script>
 </body>

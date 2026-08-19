@@ -105,6 +105,24 @@ function ligarCalendario(idCampo) {
   });
 }
 
+// Formata automaticamente enquanto a pessoa digita: 15031990 -> 15/03/1990.
+// Garante que a data sempre tenha as barras, essencial pro cálculo de idade
+// (menor de idade) e pra gravar no banco num formato consistente.
+function ligarMascaraData(idCampo) {
+  const input = document.getElementById(idCampo);
+  if (!input) return;
+  input.addEventListener('input', () => {
+    const digitos = input.value.replace(/\D/g, '').slice(0, 8);
+    let formatado = digitos;
+    if (digitos.length > 4) {
+      formatado = `${digitos.slice(0, 2)}/${digitos.slice(2, 4)}/${digitos.slice(4)}`;
+    } else if (digitos.length > 2) {
+      formatado = `${digitos.slice(0, 2)}/${digitos.slice(2)}`;
+    }
+    input.value = formatado;
+  });
+}
+
 function apenasDigitos(str) {
   return (str || '').replace(/\D/g, '');
 }
