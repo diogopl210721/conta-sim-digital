@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=63">
+<link rel="stylesheet" href="assets/css/style.css?v=64">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -105,6 +105,7 @@
     </div>
     <div class="field"><label>E-mail</label><input type="email" id="editEmail"></div>
     <div class="field"><label>Telefone</label><input type="tel" id="editTelefone"></div>
+    <div id="avisoNaoMoradorBox" style="display:none; margin-bottom:18px;"></div>
     <div class="divider"></div>
     <h3 style="font-size:16px;">Fotos capturadas (auditoria)</h3>
     <div id="fotosAuditoria" style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px;"></div>
@@ -119,7 +120,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=63"></script>
+<script src="assets/js/supabase-client.js?v=64"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -369,12 +370,20 @@ async function carregarUnidades() {
       : `<span class="badge badge-warning">Não capturado</span>`;
 
     // "Validado" só quando o morador completou TODO o fluxo (dados + doc + selfie),
-    // não apenas a etapa de confirmação de dados.
-    const statusValidacao = validacao?.status === 'validado'
-      ? `<span class="badge badge-success">Validado</span>`
-      : morador?.dados_confirmados
-        ? `<span class="badge badge-warning">Dados confirmados</span>`
-        : `<span class="badge badge-neutral">Não iniciada</span>`;
+    // não apenas a etapa de confirmação de dados. Se o consultor liberou nova
+    // tentativa, o status precisa refletir isso — senão continua mostrando
+    // "Validado" (do envio antigo) mesmo estando esperando o morador refazer.
+    const statusValidacao = u.permitir_novo_envio
+      ? `<span class="badge badge-warning">⏳ Aguardando refazer</span>`
+      : validacao?.status === 'validado'
+        ? `<span class="badge badge-success">Validado</span>`
+        : morador?.dados_confirmados
+          ? `<span class="badge badge-warning">Dados confirmados</span>`
+          : `<span class="badge badge-neutral">Não iniciada</span>`;
+
+    const avisoNaoMorador = u.aviso_nao_morador_em
+      ? `<div class="badge" style="background:#FEE2E2; color:#B91C1C; margin-top:4px; cursor:help;" title="${escapeHtml(u.aviso_nao_morador_obs || 'Sem observação adicional')}">⚠️ Avisou que não mora mais aqui</div>`
+      : '';
 
     const dadosEdicao = JSON.stringify({
       id: u.id, torre: u.torre, bloco: u.bloco, apto: u.apto,
@@ -386,6 +395,7 @@ async function carregarUnidades() {
       nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
       facial_avaliacao: validacao?.facial_avaliacao || null, facial_observacao: validacao?.facial_observacao || null,
       ja_validado: validacao?.status === 'validado', permitir_novo_envio: u.permitir_novo_envio || false,
+      aviso_nao_morador_em: u.aviso_nao_morador_em || null, aviso_nao_morador_obs: u.aviso_nao_morador_obs || null,
       medidores_historico: (u.csd_medidores || []).map(m => ({
         numero_serie: m.numero_serie, leitura_m3: m.leitura_m3, foto_url: m.foto_url, capturado_em: m.capturado_em || m.criado_em,
       })).sort((a, b) => new Date(b.capturado_em) - new Date(a.capturado_em)),
@@ -415,7 +425,7 @@ async function carregarUnidades() {
     tr.dataset.unidadeId = u.id;
     tr.innerHTML = `
       <td><strong>${escapeHtml(identificacao)}</strong></td>
-      <td>${escapeHtml(morador?.nome || '—')}</td>
+      <td>${escapeHtml(morador?.nome || '—')}${avisoNaoMorador}</td>
       <td>${statusMedidor}</td>
       <td>${statusValidacao}</td>
       <td style="white-space:nowrap;">${acoes}</td>
@@ -429,6 +439,7 @@ async function carregarUnidades() {
     card.innerHTML = `
       <strong style="font-size:16px;">${escapeHtml(identificacao)}</strong>
       <div class="muted" style="font-size:14px; margin-top:2px;">${escapeHtml(morador?.nome || 'Sem morador vinculado')}</div>
+      ${avisoNaoMorador}
       <div class="status-tiles">
         <button class="status-tile" onclick="window.location.href='campo.html?unidade=${u.id}'">
           <div class="topo"><span class="emoji">📷</span><span class="rotulo">Medidor</span></div>
@@ -463,10 +474,39 @@ function abrirEdicao(dados) {
   document.getElementById('editEmail').value = dados.email || '';
   document.getElementById('editTelefone').value = dados.telefone || '';
   renderizarFotosAuditoria(dados);
+  renderizarAvisoNaoMorador(dados);
   renderizarLiberarNovoEnvio(dados);
   renderizarHistoricoCapturas(dados);
   carregarHistoricoAlteracoes(dados.id);
   document.getElementById('modalEditar').style.display = 'flex';
+}
+
+function renderizarAvisoNaoMorador(dados) {
+  const box = document.getElementById('avisoNaoMoradorBox');
+  if (!dados.aviso_nao_morador_em) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="card" style="background:#FEF2F2; border:1px solid #FCA5A5; padding:14px;">
+      <div style="display:flex; align-items:flex-start; gap:10px;">
+        <span style="font-size:20px;">⚠️</span>
+        <div style="flex:1;">
+          <p style="margin:0; font-weight:700; color:#B91C1C; font-size:14px;">Avisaram que não moram mais aqui</p>
+          <p style="margin:4px 0 0; font-size:13px; color:#7F1D1D;">${escapeHtml(dados.aviso_nao_morador_obs || 'Sem observação adicional.')}</p>
+          <p class="muted" style="font-size:11px; margin:6px 0 10px;">Recebido em ${new Date(dados.aviso_nao_morador_em).toLocaleString('pt-BR')}</p>
+          <button class="btn btn-outline btn-sm" onclick="resolverAvisoNaoMorador('${dados.id}')">Marcar como resolvido</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function resolverAvisoNaoMorador(unidadeId) {
+  const { error } = await sb.rpc('csd_rpc_resolver_aviso_nao_morador', { p_unidade_id: unidadeId });
+  if (error) { toast('Erro ao marcar como resolvido.', 'error'); return; }
+  toast('Aviso marcado como resolvido.', 'success');
+  document.getElementById('avisoNaoMoradorBox').style.display = 'none';
+  await carregarUnidades();
 }
 
 function renderizarHistoricoCapturas(dados) {

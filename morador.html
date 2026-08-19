@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=63">
+<link rel="stylesheet" href="assets/css/style.css?v=64">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -45,21 +45,44 @@
 
     <!-- ETAPA: localizar unidade (link geral do condomínio) -->
     <div id="etapaLocalizar" style="display:none;">
-      <h2>Qual é a sua unidade?</h2>
-      <p id="nomeCondominioLocalizar" class="muted"></p>
-      <div class="field" id="campoTorreLocalizar" style="display:none;">
-        <label>Torre</label>
-        <input type="text" id="inputTorre">
+      <div id="localizarConteudo">
+        <h2>Qual é a sua unidade?</h2>
+        <p id="nomeCondominioLocalizar" class="muted"></p>
+        <div class="field" id="campoTorreLocalizar" style="display:none;">
+          <label>Torre</label>
+          <input type="text" id="inputTorre">
+        </div>
+        <div class="field" id="campoBlocoLocalizar" style="display:none;">
+          <label>Bloco</label>
+          <input type="text" id="inputBloco">
+        </div>
+        <div class="field">
+          <label>Apto</label>
+          <input type="text" id="inputApto" inputmode="numeric">
+        </div>
+        <button class="btn btn-primary btn-block" onclick="confirmarUnidade()">Continuar</button>
+
+        <button type="button" onclick="mostrarFormNaoMorador()"
+          style="display:block; width:100%; text-align:center; background:none; border:none; padding:14px 8px 4px; margin-top:6px; font-size:14.5px; font-weight:700; color:var(--danger); cursor:pointer;">
+          🚪 Não moro mais neste apartamento
+        </button>
+
+        <div id="formNaoMorador" style="display:none; margin-top:14px; padding-top:16px; border-top:1px solid var(--border);">
+          <p style="font-size:14px; color:var(--ink-soft); margin-bottom:10px;">
+            Sem problema — isso ajuda a manter o cadastro do condomínio atualizado. Confirme o apto acima e, se quiser, conte um pouco mais:
+          </p>
+          <div class="field">
+            <textarea id="inputObsNaoMorador" rows="3" placeholder="Ex: me mudei há alguns meses, não sei quem mora lá agora (opcional)" style="width:100%; resize:vertical;"></textarea>
+          </div>
+          <button class="btn btn-outline btn-block" onclick="enviarAvisoNaoMorador()" id="btnEnviarAvisoNaoMorador">Enviar aviso ao consultor</button>
+        </div>
       </div>
-      <div class="field" id="campoBlocoLocalizar" style="display:none;">
-        <label>Bloco</label>
-        <input type="text" id="inputBloco">
+
+      <div id="confirmacaoAvisoEnviado" style="display:none; text-align:center; padding:20px 0;">
+        <div style="font-size:44px; margin-bottom:10px;">✅</div>
+        <h2>Aviso enviado, obrigado!</h2>
+        <p>O consultor responsável foi avisado que você não mora mais nessa unidade.</p>
       </div>
-      <div class="field">
-        <label>Apto</label>
-        <input type="text" id="inputApto" inputmode="numeric">
-      </div>
-      <button class="btn btn-primary btn-block" onclick="confirmarUnidade()">Continuar</button>
     </div>
 
     <!-- ETAPA: validar CPF -->
@@ -205,7 +228,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=63"></script>
+<script src="assets/js/supabase-client.js?v=64"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -299,6 +322,29 @@ async function confirmarUnidade() {
   if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
   document.getElementById('btnVoltarCpf').style.display = 'inline-flex';
   mostrarEtapa('cpf', 1);
+}
+
+function mostrarFormNaoMorador() {
+  document.getElementById('formNaoMorador').style.display = 'block';
+}
+
+async function enviarAvisoNaoMorador() {
+  const apto = document.getElementById('inputApto').value.trim();
+  if (!apto) { toast('Informe o número do apto antes de enviar o aviso.', 'error'); return; }
+  const torre = document.getElementById('inputTorre')?.value.trim() || '';
+  const bloco = document.getElementById('inputBloco')?.value.trim() || '';
+  const observacao = document.getElementById('inputObsNaoMorador').value.trim() || null;
+
+  const btn = document.getElementById('btnEnviarAvisoNaoMorador');
+  setBtnLoading(btn, true);
+  const { error } = await sb.rpc('csd_rpc_reportar_nao_morador', {
+    p_condominio_id: condominioId, p_torre: torre, p_bloco: bloco, p_apto: apto, p_observacao: observacao
+  });
+  setBtnLoading(btn, false, 'Enviar aviso ao consultor');
+  if (error) { toast('Erro ao enviar aviso. Tente novamente.', 'error'); return; }
+
+  document.getElementById('localizarConteudo').style.display = 'none';
+  document.getElementById('confirmacaoAvisoEnviado').style.display = 'block';
 }
 
 async function validarCpf() {
