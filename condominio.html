@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=69">
+<link rel="stylesheet" href="assets/css/style.css?v=70">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=69"></script>
+<script src="assets/js/supabase-client.js?v=70"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -741,10 +741,16 @@ async function exportarExcel(btn) {
 
   if (btn) setBtnLoading(btn, true);
 
-  const { data: unidades } = await sb.from('csd_unidades')
-    .select('*, csd_moradores(*, csd_validacoes(*)), csd_medidores(*)')
-    .eq('condominio_id', condominioId)
-    .order('apto');
+  try {
+    if (typeof ExcelJS === 'undefined') {
+      throw new Error('Biblioteca de Excel não carregou (verifique sua conexão e recarregue a página)');
+    }
+
+    const { data: unidades, error: erroUnidades } = await sb.from('csd_unidades')
+      .select('*, csd_moradores(*, csd_validacoes(*)), csd_medidores(*)')
+      .eq('condominio_id', condominioId)
+      .order('apto');
+    if (erroUnidades) throw erroUnidades;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Consigaz — Conta Sim Digital';
@@ -958,8 +964,12 @@ async function exportarExcel(btn) {
   a.download = `conta-sim-${(condominioAtual?.nome || 'condominio').replace(/[^a-z0-9]/gi, '-')}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
-
-  if (btn) setBtnLoading(btn, false, 'Exportar Excel');
+  } catch (err) {
+    console.error('Erro ao exportar Excel:', err);
+    toast('Erro ao exportar: ' + (err.message || 'erro desconhecido') + '. Tente novamente ou avise o suporte.', 'error');
+  } finally {
+    if (btn) setBtnLoading(btn, false, 'Exportar Excel');
+  }
 }
 
 ligarCalendario('editNascimento');
