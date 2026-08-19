@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=67">
+<link rel="stylesheet" href="assets/css/style.css?v=68">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -62,8 +62,8 @@
         </div>
         <button class="btn btn-primary btn-block" onclick="confirmarUnidade()" style="background:var(--success); border-color:var(--success);">Continuar</button>
 
-        <button type="button" onclick="reportarNaoMorador()" id="btnNaoMorador"
-          style="display:block; width:100%; text-align:center; background:none; border:none; padding:16px 8px 4px; font-size:14.5px; font-weight:700; color:var(--flame); cursor:pointer;">
+        <button type="button" class="btn btn-block" onclick="reportarNaoMorador()" id="btnNaoMorador"
+          style="margin-top:12px; background:var(--danger); border-color:var(--danger); color:#fff;">
           🚪 Não sou morador deste edifício
         </button>
       </div>
@@ -218,7 +218,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=67"></script>
+<script src="assets/js/supabase-client.js?v=68"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
