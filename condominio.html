@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=64">
+<link rel="stylesheet" href="assets/css/style.css?v=65">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -120,7 +120,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=64"></script>
+<script src="assets/js/supabase-client.js?v=65"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -781,13 +781,13 @@ async function exportarExcel(btn) {
     views: [{ state: 'frozen', ySplit: 7 }],
   });
 
-  const colunas = ['Torre', 'Bloco', 'Apto', 'Morador', 'CPF', 'E-mail', 'Telefone', 'Nº Série Medidor', 'Leitura (m³)', 'Status Medidor', 'Status Validação'];
+  const colunas = ['Torre', 'Bloco', 'Apto', 'Morador', 'CPF', 'Data de Nascimento', 'E-mail', 'Telefone', 'Nº Série Medidor', 'Leitura (m³)', 'Status Medidor', 'Status Validação'];
   sheet.columns = colunas.map(c => ({ width: Math.max(14, c.length + 4) }));
   sheet.columns[3].width = 26; // Morador
-  sheet.columns[5].width = 26; // E-mail
+  sheet.columns[6].width = 26; // E-mail
 
   // Faixa de topo com a cor da marca
-  sheet.mergeCells('A1:K1');
+  sheet.mergeCells('A1:L1');
   sheet.getRow(1).height = 8;
   sheet.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FLAME } };
 
@@ -801,7 +801,7 @@ async function exportarExcel(btn) {
   sheet.getRow(2).height = 24;
 
   // Linha 3: "Conta Sim Digital" (marca) — abaixo da logo, mesma margem esquerda
-  sheet.mergeCells('A3:K3');
+  sheet.mergeCells('A3:L3');
   const marcaCell = sheet.getCell('A3');
   marcaCell.value = 'Conta Sim Digital';
   marcaCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF8A93A6' } };
@@ -809,7 +809,7 @@ async function exportarExcel(btn) {
   sheet.getRow(3).height = 16;
 
   // Linha 4: Nome do edifício (destaque principal) — abaixo da marca
-  sheet.mergeCells('A4:K4');
+  sheet.mergeCells('A4:L4');
   const nomeCell = sheet.getCell('A4');
   nomeCell.value = condominioAtual?.nome || '';
   nomeCell.font = { name: 'Calibri', size: 17, bold: true, color: { argb: NAVY } };
@@ -817,7 +817,7 @@ async function exportarExcel(btn) {
   sheet.getRow(4).height = 24;
 
   // Linha 5: Síndico(a) e telefone
-  sheet.mergeCells('A5:K5');
+  sheet.mergeCells('A5:L5');
   const sindicoCell = sheet.getCell('A5');
   const sindicoTexto = condominioAtual?.sindico_nome
     ? `Síndico(a): ${condominioAtual.sindico_nome}${condominioAtual?.sindico_telefone ? '  ·  ' + condominioAtual.sindico_telefone : ''}`
@@ -828,7 +828,7 @@ async function exportarExcel(btn) {
   sheet.getRow(5).height = 16;
 
   // Linha 6: Endereço do edifício
-  sheet.mergeCells('A6:K6');
+  sheet.mergeCells('A6:L6');
   const enderecoCell = sheet.getCell('A6');
   enderecoCell.value = [condominioAtual?.endereco, condominioAtual?.cidade].filter(Boolean).join(' — ');
   enderecoCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: 'FF8A93A6' } };
@@ -860,7 +860,7 @@ async function exportarExcel(btn) {
 
     const row = sheet.addRow([
       u.torre || '', u.bloco || '', u.apto,
-      morador?.nome || '', morador?.cpf || '', morador?.email || '', morador?.telefone || '',
+      morador?.nome || '', morador?.cpf || '', morador?.data_nascimento || '', morador?.email || '', morador?.telefone || '',
       medidor?.numero_serie || '', formatarLeituraM3(medidor?.leitura_m3),
       medidorOk ? 'Capturado' : 'Pendente',
       validadoOk ? 'Validado' : (morador?.dados_confirmados ? 'Dados confirmados' : 'Aguardando'),
@@ -870,17 +870,20 @@ async function exportarExcel(btn) {
       cell.font = { name: 'Calibri', size: 10.5, color: { argb: 'FF14213D' } };
       cell.border = { top: BORDER, bottom: BORDER, left: BORDER, right: BORDER };
       cell.alignment = { vertical: 'middle' };
-      if (colNumber === 9) {
-        cell.font.name = 'Courier New';
+      if (colNumber === 6) {
         cell.alignment.horizontal = 'center';
       }
       if (colNumber === 10) {
+        cell.font.name = 'Courier New';
+        cell.alignment.horizontal = 'center';
+      }
+      if (colNumber === 11) {
         cell.alignment.horizontal = 'center';
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: medidorOk ? SUCCESS : WARNING } };
         cell.font.color = { argb: medidorOk ? SUCCESS_TXT : WARNING_TXT };
         cell.font.bold = true;
       }
-      if (colNumber === 11) {
+      if (colNumber === 12) {
         cell.alignment.horizontal = 'center';
         const cor = validadoOk ? SUCCESS : (morador?.dados_confirmados ? WARNING : NEUTRAL);
         const corTxt = validadoOk ? SUCCESS_TXT : (morador?.dados_confirmados ? WARNING_TXT : NEUTRAL_TXT);
@@ -891,7 +894,7 @@ async function exportarExcel(btn) {
     });
   }
 
-  sheet.autoFilter = { from: 'A7', to: `K${7 + (unidades || []).length}` };
+  sheet.autoFilter = { from: 'A7', to: `L${7 + (unidades || []).length}` };
 
   // ---------- Aba Resumo (layout tipo dashboard) ----------
   const totalUnidades = (unidades || []).length;
