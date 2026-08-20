@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=71">
+<link rel="stylesheet" href="assets/css/style.css?v=72">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -51,8 +51,8 @@
     <!-- Importação de planilha -->
     <div class="card">
       <h3>Importar planilha do síndico</h3>
-      <p style="font-size:14px;">Qualquer formato — o sistema identifica as colunas automaticamente.</p>
-      <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv" style="display:none;">
+      <p style="font-size:14px;">Excel, CSV ou PDF — o sistema identifica as colunas automaticamente.</p>
+      <input type="file" id="arquivoPlanilha" accept=".xlsx,.xls,.csv,.pdf" style="display:none;">
       <button class="btn btn-outline btn-sm" id="btnEscolherArquivo" onclick="document.getElementById('arquivoPlanilha').click()" style="margin-bottom:6px;">📁 Escolher arquivo</button>
       <p class="muted" id="nomeArquivoEscolhido" style="font-size:13px; margin:0;">Nenhum arquivo escolhido</p>
       <div id="resultadoImportacao" class="muted" style="margin-top:12px; font-size:14px;"></div>
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=71"></script>
+<script src="assets/js/supabase-client.js?v=72"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -249,6 +249,32 @@ document.getElementById('arquivoPlanilha').addEventListener('change', async (e) 
   setBtnLoading(btn, true);
 
   try {
+    const ehPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    if (ehPdf) {
+      // PDF não tem colunas pra mapear — a IA lê o documento inteiro e já devolve
+      // os dados prontos, direto nos nomes de campo internos (torre/bloco/apto/...)
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await sb.functions.invoke('csd-importar-pdf', { body: { pdf_base64: base64 } });
+      if (error || !data?.unidades || data.unidades.length === 0) {
+        toast('Não consegui ler unidades nesse PDF. Confira se é uma lista/tabela de moradores.', 'error');
+        setBtnLoading(btn, false, '📁 Escolher arquivo');
+        return;
+      }
+
+      planilhaLinhas = data.unidades;
+      // Mapeamento "identidade" — o PDF já vem com os nomes de campo certos
+      const mapeamentoIdentidade = { torre: 'torre', bloco: 'bloco', apto: 'apto', nome: 'nome', nascimento: 'data_nascimento', cpf: 'cpf', email: 'email', telefone: 'telefone' };
+      await importarPlanilha(mapeamentoIdentidade);
+      return;
+    }
+
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array' });
     const primeiraAba = wb.Sheets[wb.SheetNames[0]];
@@ -258,11 +284,15 @@ document.getElementById('arquivoPlanilha').addEventListener('change', async (e) 
     planilhaLinhas = linhas;
     planilhaCabecalhos = Object.keys(linhas[0]);
 
-    let mapeamento = await detectarMapeamentoComIA(planilhaCabecalhos, linhas.slice(0, 5));
-    if (!mapeamento) {
-      // Se a IA não respondeu por qualquer motivo (rede, etc.), cai no
-      // reconhecimento por palavras-chave como reserva, pra nunca travar a importação
-      mapeamento = detectarMapeamento(planilhaCabecalhos);
+    // Roda os dois reconhecimentos e mescla: usa a resposta da IA quando ela
+    // identificar o campo, e completa com o reconhecimento por palavra-chave
+    // pra qualquer campo que a IA não tenha achado — assim, mesmo que a IA erre
+    // uma coluna (como "Unidade" ou "Cliente"), o reconhecimento simples cobre.
+    const mapeamentoIA = await detectarMapeamentoComIA(planilhaCabecalhos, linhas.slice(0, 5));
+    const mapeamentoChave = detectarMapeamento(planilhaCabecalhos);
+    const mapeamento = {};
+    for (const campo of CAMPOS_ALVO) {
+      mapeamento[campo.chave] = (mapeamentoIA && mapeamentoIA[campo.chave]) || mapeamentoChave[campo.chave] || null;
     }
 
     if (!mapeamento.apto) {
@@ -378,6 +408,7 @@ async function carregarUnidades() {
 
   for (const u of unidades) {
     const identificacao = [u.torre, u.bloco, u.apto].filter(Boolean).join(' / ');
+    const identificacaoHtml = formatarIdentificacaoUnidade(u);
     const morador = moradorAtual(u.csd_moradores);
     const validacao = maisRecente(morador?.csd_validacoes);
     const medidor = maisRecente(u.csd_medidores);
@@ -437,7 +468,7 @@ async function carregarUnidades() {
     const tr = document.createElement('tr');
     tr.dataset.unidadeId = u.id;
     tr.innerHTML = `
-      <td><strong>${escapeHtml(identificacao)}</strong></td>
+      <td><strong>${identificacaoHtml}</strong></td>
       <td>${escapeHtml(morador?.nome || '—')}</td>
       <td>${statusMedidor}</td>
       <td>${statusValidacao}</td>
@@ -450,7 +481,7 @@ async function carregarUnidades() {
     card.className = 'card';
     card.style.marginBottom = '10px';
     card.innerHTML = `
-      <strong style="font-size:16px;">${escapeHtml(identificacao)}</strong>
+      <strong style="font-size:16px;">${identificacaoHtml}</strong>
       <div class="muted" style="font-size:14px; margin-top:2px;">${escapeHtml(morador?.nome || 'Sem morador vinculado')}</div>
       <div class="status-tiles">
         <button class="status-tile" onclick="window.location.href='campo.html?unidade=${u.id}'">
@@ -725,6 +756,18 @@ function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str || '';
   return d.innerHTML;
+}
+
+// Mostra torre/bloco em cinza discreto e o apto em destaque (negrito/azul-marinho),
+// separados por uma barrinha vertical — fica claro qual é qual mesmo quando os
+// três valores vêm colados numa planilha, sem duplicar palavras tipo "Torre Torre A"
+// caso o dado importado já venha com esse texto.
+function formatarIdentificacaoUnidade(u) {
+  const partes = [];
+  if (u.torre) partes.push(`<span style="color:var(--ink-faint); font-weight:600;">${escapeHtml(u.torre)}</span>`);
+  if (u.bloco) partes.push(`<span style="color:var(--ink-faint); font-weight:600;">${escapeHtml(u.bloco)}</span>`);
+  partes.push(`<span style="color:var(--navy-900); font-weight:800;">${escapeHtml(u.apto)}</span>`);
+  return partes.join('<span style="color:var(--border); margin:0 6px; font-weight:400;">|</span>');
 }
 
 // ---------- Exportação (Excel profissional com logo e formatação) ----------
