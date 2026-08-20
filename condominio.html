@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=72">
+<link rel="stylesheet" href="assets/css/style.css?v=73">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=72"></script>
+<script src="assets/js/supabase-client.js?v=73"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -438,6 +438,8 @@ async function carregarUnidades() {
       doc_foto: validacao?.foto_documento_url || null, selfie_foto: validacao?.foto_selfie_url || null,
       validado_em: validacao?.validado_em || null,
       nome_extraido: validacao?.nome_extraido_documento || null, nome_confere: validacao?.nome_confere,
+      cpf_extraido: validacao?.cpf_extraido_documento || null, cpf_confere: validacao?.cpf_confere,
+      rg_extraido: validacao?.rg_extraido_documento || null,
       facial_avaliacao: validacao?.facial_avaliacao || null, facial_observacao: validacao?.facial_observacao || null,
       ja_validado: validacao?.status === 'validado', permitir_novo_envio: u.permitir_novo_envio || false,
       medidores_historico: (u.csd_medidores || []).map(m => ({
@@ -674,6 +676,12 @@ function renderizarFotosAuditoria(dados) {
         ? `<span class="badge badge-success">Confere</span>`
         : `<span class="badge badge-danger">Não confere</span>`;
 
+    const linhaCpf = dados.cpf_confere === null || dados.cpf_confere === undefined
+      ? `<span class="badge badge-neutral">Não lido no documento</span>`
+      : dados.cpf_confere
+        ? `<span class="badge badge-success">Confere</span>`
+        : `<span class="badge badge-danger">Não confere</span>`;
+
     const rotulosFacial = {
       mesma_pessoa: `<span class="badge badge-success">Parece a mesma pessoa</span>`,
       pessoas_diferentes: `<span class="badge badge-danger">Parece pessoa diferente</span>`,
@@ -684,6 +692,8 @@ function renderizarFotosAuditoria(dados) {
     boxVerificacao.style.display = 'block';
     boxVerificacao.innerHTML = `
       <div class="card-row"><span style="font-size:13px;">Nome do documento (${escapeAttr(dados.nome_extraido || '—')}) confere com o cadastro</span>${linhaNome}</div>
+      <div class="card-row"><span style="font-size:13px;">CPF do documento (${escapeAttr(dados.cpf_extraido || '—')}) confere com o cadastro</span>${linhaCpf}</div>
+      ${dados.rg_extraido ? `<div class="card-row"><span style="font-size:13px;">RG lido no documento</span><span class="mono" style="font-size:13px; font-weight:700;">${escapeHtml(dados.rg_extraido)}</span></div>` : ''}
       <div class="card-row"><span style="font-size:13px;">Rosto da selfie x documento</span>${linhaFacial}</div>
       ${dados.facial_observacao ? `<p class="muted" style="font-size:12px; margin:6px 0 0;">"${escapeHtml(dados.facial_observacao)}"</p>` : ''}
       <p class="muted" style="font-size:11px; margin:8px 0 0;">⚠️ Avaliação por IA — não é reconhecimento facial biométrico certificado. Use como sinal de apoio, não como prova definitiva.</p>
