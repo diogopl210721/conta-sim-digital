@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=74">
+<link rel="stylesheet" href="assets/css/style.css?v=75">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=74"></script>
+<script src="assets/js/supabase-client.js?v=75"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -426,7 +426,7 @@ async function carregarUnidades() {
       : validacao?.status === 'validado'
         ? `<span class="badge badge-success">Validado</span>`
         : morador?.dados_confirmados
-          ? `<span class="badge badge-warning">Dados confirmados</span>`
+          ? `<span class="badge badge-warning">🕓 Em andamento</span>`
           : `<span class="badge badge-neutral">Não iniciada</span>`;
 
 
@@ -912,7 +912,7 @@ async function exportarExcel(btn) {
       morador?.nome || '', morador?.cpf || '', morador?.data_nascimento || '', morador?.email || '', morador?.telefone || '',
       medidor?.numero_serie || '', formatarLeituraM3(medidor?.leitura_m3),
       medidorOk ? 'Capturado' : 'Pendente',
-      validadoOk ? 'Validado' : (morador?.dados_confirmados ? 'Dados confirmados' : 'Aguardando'),
+      validadoOk ? 'Validado' : (morador?.dados_confirmados ? 'Em andamento' : 'Aguardando'),
     ]);
     row.height = 20;
     row.eachCell((cell, colNumber) => {
