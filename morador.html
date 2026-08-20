@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=75">
+<link rel="stylesheet" href="assets/css/style.css?v=76">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -218,7 +218,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=75"></script>
+<script src="assets/js/supabase-client.js?v=76"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
@@ -226,6 +226,7 @@ const token = params.get('token');
 let condominioId = null;
 let unidadeId = null;
 let identificacaoUnidade = null;
+let partesUnidade = { torre: null, bloco: null, apto: null };
 let numeroSerieUnidade = null;
 let moradorId = null;
 let docBase64 = null, docMediaType = null, docUrl = null;
@@ -240,14 +241,27 @@ function mostrarEtapa(nome, passoVisual) {
   atualizarFaixaUnidade();
 }
 
+// Evita duplicar o rótulo se o dado importado já vier com ele escrito
+// (ex: se a planilha já trouxe "Torre A", não queremos mostrar "Torre Torre A")
+function comRotulo(rotulo, valor) {
+  const v = String(valor).trim();
+  return v.toLowerCase().startsWith(rotulo.toLowerCase()) ? v : `${rotulo} ${v}`;
+}
+
 function atualizarFaixaUnidade() {
   const faixa = document.getElementById('faixaUnidade');
   if (!faixa) return;
+
+  const selos = [];
+  if (partesUnidade.torre) selos.push(`<span style="display:inline-block; background:#fff; color:var(--ink-soft); font-weight:700; font-size:12px; padding:2px 8px; border-radius:6px; margin-right:4px;">${comRotulo('Torre', partesUnidade.torre)}</span>`);
+  if (partesUnidade.bloco) selos.push(`<span style="display:inline-block; background:#fff; color:var(--ink-soft); font-weight:700; font-size:12px; padding:2px 8px; border-radius:6px; margin-right:4px;">${comRotulo('Bloco', partesUnidade.bloco)}</span>`);
+  if (partesUnidade.apto) selos.push(`<span style="display:inline-block; background:var(--navy-900); color:#fff; font-weight:800; font-size:12px; padding:2px 8px; border-radius:6px;">${comRotulo('Apto', partesUnidade.apto)}</span>`);
+
   const linhas = [
-    identificacaoUnidade ? `Unidade: ${identificacaoUnidade}` : null,
-    numeroSerieUnidade ? `Medidor: ${numeroSerieUnidade}` : null,
+    selos.length ? `<div>Unidade: ${selos.join('')}</div>` : null,
+    numeroSerieUnidade ? `<div>Medidor: ${numeroSerieUnidade}</div>` : null,
   ].filter(Boolean);
-  faixa.innerHTML = linhas.map(l => `<div>${l}</div>`).join('');
+  faixa.innerHTML = linhas.join('');
   faixa.style.display = linhas.length ? 'block' : 'none';
 }
 
@@ -278,6 +292,7 @@ async function iniciar() {
   if (data.tipo === 'unidade') {
     unidadeId = data.unidade_id;
     identificacaoUnidade = [data.torre, data.bloco, data.apto].filter(Boolean).join(' / ');
+    partesUnidade = { torre: data.torre || null, bloco: data.bloco || null, apto: data.apto || null };
     numeroSerieUnidade = data.medidor_numero_serie || null;
     if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
     mostrarEtapa('cpf', 1);
@@ -308,6 +323,7 @@ async function confirmarUnidade() {
   if (error) { toast('Erro ao localizar unidade.', 'error'); return; }
   unidadeId = data.unidade_id;
   identificacaoUnidade = [torre, bloco, apto].filter(Boolean).join(' / ');
+  partesUnidade = { torre: torre || null, bloco: bloco || null, apto: apto || null };
   numeroSerieUnidade = data.medidor_numero_serie || null;
   if (data.ja_validado) { mostrarEtapa('jaConcluido'); return; }
   document.getElementById('btnVoltarCpf').style.display = 'inline-flex';
@@ -777,7 +793,7 @@ function chaveProgresso() { return 'csd_progresso_' + token; }
 function salvarProgresso(etapa) {
   try {
     localStorage.setItem(chaveProgresso(), JSON.stringify({
-      etapa, condominioId, unidadeId, moradorId, identificacaoUnidade, numeroSerieUnidade,
+      etapa, condominioId, unidadeId, moradorId, identificacaoUnidade, partesUnidade, numeroSerieUnidade,
       nome: document.getElementById('confNome')?.value || '',
       cpf: document.getElementById('confCpf')?.value || '',
       nascimento: document.getElementById('confNascimento')?.value || '',
@@ -806,6 +822,7 @@ function restaurarProgresso() {
 
     condominioId = p.condominioId; unidadeId = p.unidadeId; moradorId = p.moradorId;
     identificacaoUnidade = p.identificacaoUnidade; numeroSerieUnidade = p.numeroSerieUnidade;
+    partesUnidade = p.partesUnidade || { torre: null, bloco: null, apto: null };
     docUrl = p.docUrl || null; docMediaType = p.docMediaType || null;
     document.getElementById('confNome').value = p.nome || '';
     document.getElementById('confCpf').value = p.cpf || '';
