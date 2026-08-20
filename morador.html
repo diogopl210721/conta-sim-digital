@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Cadastro do morador — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=73">
+<link rel="stylesheet" href="assets/css/style.css?v=74">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -158,7 +158,7 @@
       <input type="file" id="inputDocGaleria" accept="image/*,application/pdf" style="display:none;">
       <button class="btn btn-secondary btn-block" id="btnAbrirCameraDoc" onclick="abrirCamera('Doc')" style="margin-bottom:10px;">📷 Tirar foto do documento</button>
       <button class="btn btn-outline btn-block" id="btnGaleriaDoc" onclick="document.getElementById('inputDocGaleria').click()" style="margin-bottom:10px;">🖼️ Escolher da galeria (foto ou PDF)</button>
-      <button class="btn btn-ghost btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Doc')">Refazer foto</button>
+      <button class="btn btn-outline btn-block" id="btnRefazerDoc" style="display:none; margin-bottom:16px; color:var(--flame-dark); border-color:var(--flame);" onclick="abrirCamera('Doc')">🔄 Refazer foto</button>
       <p id="avisoNomeDoc" style="display:none; color:var(--danger); font-size:13px; background:var(--danger-light); padding:10px 14px; border-radius:10px; margin-bottom:12px;"></p>
       <div id="confirmacaoDocOk" style="display:none; background:var(--success-light); border-radius:12px; padding:14px; margin-bottom:16px; text-align:center;">
         <p id="textoConfirmacaoDoc" style="margin:0 0 12px; color:var(--success); font-weight:700; font-size:14px;">✓ Documento validado</p>
@@ -187,7 +187,7 @@
       </div>
       <input type="file" id="inputSelfie" accept="image/*" capture="user" style="display:none;">
       <button class="btn btn-secondary btn-block" id="btnAbrirCameraSelfie" onclick="abrirCamera('Selfie')" style="margin-bottom:10px;">🤳 Tirar selfie</button>
-      <button class="btn btn-ghost btn-block" id="btnRefazerSelfie" style="display:none; margin-bottom:16px;" onclick="abrirCamera('Selfie')">Refazer foto</button>
+      <button class="btn btn-outline btn-block" id="btnRefazerSelfie" style="display:none; margin-bottom:16px; color:var(--flame-dark); border-color:var(--flame);" onclick="abrirCamera('Selfie')">🔄 Refazer foto</button>
       <button class="btn btn-primary btn-block" id="btnFinalizar" onclick="finalizar()" disabled>Concluir cadastro</button>
     </div>
 
@@ -218,7 +218,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=73"></script>
+<script src="assets/js/supabase-client.js?v=74"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');

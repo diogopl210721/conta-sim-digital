@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Condomínio — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=73">
+<link rel="stylesheet" href="assets/css/style.css?v=74">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
@@ -126,7 +126,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=73"></script>
+<script src="assets/js/supabase-client.js?v=74"></script>
 <script>
 const params = new URLSearchParams(window.location.search);
 const condominioId = params.get('id');
@@ -772,12 +772,19 @@ function escapeHtml(str) {
 // separados por uma barrinha vertical — fica claro qual é qual mesmo quando os
 // três valores vêm colados numa planilha, sem duplicar palavras tipo "Torre Torre A"
 // caso o dado importado já venha com esse texto.
+// Evita duplicar o rótulo se o dado importado já vier com ele escrito
+// (ex: se a planilha já trouxe "Torre A", não queremos mostrar "Torre Torre A")
+function comRotulo(rotulo, valor) {
+  const v = String(valor).trim();
+  return v.toLowerCase().startsWith(rotulo.toLowerCase()) ? v : `${rotulo} ${v}`;
+}
+
 function formatarIdentificacaoUnidade(u) {
   const partes = [];
-  if (u.torre) partes.push(`<span style="color:var(--ink-faint); font-weight:600;">${escapeHtml(u.torre)}</span>`);
-  if (u.bloco) partes.push(`<span style="color:var(--ink-faint); font-weight:600;">${escapeHtml(u.bloco)}</span>`);
-  partes.push(`<span style="color:var(--navy-900); font-weight:800;">${escapeHtml(u.apto)}</span>`);
-  return partes.join('<span style="color:var(--border); margin:0 6px; font-weight:400;">|</span>');
+  if (u.torre) partes.push(`<span style="display:inline-block; background:#EEF2F7; color:var(--ink-soft); font-weight:700; font-size:12px; padding:2px 8px; border-radius:6px;">${escapeHtml(comRotulo('Torre', u.torre))}</span>`);
+  if (u.bloco) partes.push(`<span style="display:inline-block; background:#EEF2F7; color:var(--ink-soft); font-weight:700; font-size:12px; padding:2px 8px; border-radius:6px;">${escapeHtml(comRotulo('Bloco', u.bloco))}</span>`);
+  partes.push(`<span style="display:inline-block; background:var(--flame-light); color:var(--navy-900); font-weight:800; font-size:12px; padding:2px 8px; border-radius:6px;">${escapeHtml(comRotulo('Apto', u.apto))}</span>`);
+  return partes.join(' ');
 }
 
 // ---------- Exportação (Excel profissional com logo e formatação) ----------

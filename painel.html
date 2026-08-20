@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
 <title>Meus Condomínios — Conta Sim Digital</title>
-<link rel="stylesheet" href="assets/css/style.css?v=73">
+<link rel="stylesheet" href="assets/css/style.css?v=74">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -46,7 +46,49 @@
           <h3 id="perfilNome" style="margin-bottom:2px;"></h3>
           <p class="muted" style="margin:0; font-size:14px;">Responsável pelos condomínios abaixo</p>
         </div>
-        <span class="badge badge-neutral">Consultor</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge badge-neutral">Consultor</span>
+          <button class="icon-btn" title="Editar meu perfil" onclick="abrirEdicaoPerfil()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de edição do próprio perfil -->
+    <div id="modalEditarPerfil" style="display:none; position:fixed; inset:0; background:rgba(11,41,71,0.6); align-items:flex-end; justify-content:center; z-index:50;">
+      <div class="card" style="width:100%; max-width:480px; border-radius:20px 20px 0 0; max-height:90vh; overflow-y:auto;">
+        <h3>Meu perfil</h3>
+        <div class="field">
+          <label for="editPerfilNome">Nome completo</label>
+          <input type="text" id="editPerfilNome">
+        </div>
+        <div class="field">
+          <label for="editPerfilTelefone">Telefone</label>
+          <input type="tel" id="editPerfilTelefone">
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input type="email" id="editPerfilEmail" disabled style="background:var(--bg); color:var(--ink-faint);">
+          <div class="hint">O e-mail de login não pode ser alterado por aqui.</div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button type="button" class="btn btn-outline" onclick="document.getElementById('modalEditarPerfil').style.display='none'">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btnSalvarPerfil" onclick="salvarEdicaoPerfil()">Salvar</button>
+        </div>
+
+        <div class="divider"></div>
+        <h3 style="font-size:16px;">Alterar senha</h3>
+        <p class="muted" style="font-size:13px; margin-top:-8px;">Deixe em branco se não quiser trocar a senha agora.</p>
+        <div class="field">
+          <label for="novaSenhaPerfil">Nova senha</label>
+          <input type="password" id="novaSenhaPerfil" autocomplete="new-password" minlength="6">
+        </div>
+        <div class="field">
+          <label for="confirmarNovaSenhaPerfil">Confirmar nova senha</label>
+          <input type="password" id="confirmarNovaSenhaPerfil" autocomplete="new-password" minlength="6">
+        </div>
+        <button type="button" class="btn btn-secondary btn-block" id="btnTrocarSenha" onclick="trocarSenhaPerfil()">Salvar nova senha</button>
       </div>
     </div>
 
@@ -151,7 +193,7 @@
   </div>
 </div>
 
-<script src="assets/js/supabase-client.js?v=73"></script>
+<script src="assets/js/supabase-client.js?v=74"></script>
 <script>
 let perfilAtual = null;
 
@@ -171,6 +213,53 @@ async function carregarPainel() {
   document.getElementById('perfilNome').textContent = perfilAtual.nome;
 
   await carregarCondominios();
+}
+
+// ---------- Editar meu perfil ----------
+async function abrirEdicaoPerfil() {
+  document.getElementById('editPerfilNome').value = perfilAtual.nome || '';
+  document.getElementById('editPerfilTelefone').value = perfilAtual.telefone || '';
+  const { data: { user } } = await sb.auth.getUser();
+  document.getElementById('editPerfilEmail').value = user?.email || '';
+  document.getElementById('novaSenhaPerfil').value = '';
+  document.getElementById('confirmarNovaSenhaPerfil').value = '';
+  document.getElementById('modalEditarPerfil').style.display = 'flex';
+}
+
+async function salvarEdicaoPerfil() {
+  const nome = document.getElementById('editPerfilNome').value.trim();
+  const telefone = document.getElementById('editPerfilTelefone').value.trim();
+  if (!nome) { toast('Informe seu nome.', 'error'); return; }
+
+  const btn = document.getElementById('btnSalvarPerfil');
+  setBtnLoading(btn, true);
+  const { error } = await sb.from('csd_consultores').update({ nome, telefone }).eq('id', perfilAtual.id);
+  setBtnLoading(btn, false, 'Salvar');
+
+  if (error) { toast('Erro ao salvar perfil.', 'error'); return; }
+  perfilAtual.nome = nome;
+  perfilAtual.telefone = telefone;
+  document.getElementById('perfilNome').textContent = nome;
+  toast('Perfil atualizado!', 'success');
+  document.getElementById('modalEditarPerfil').style.display = 'none';
+}
+
+async function trocarSenhaPerfil() {
+  const senha = document.getElementById('novaSenhaPerfil').value;
+  const confirmar = document.getElementById('confirmarNovaSenhaPerfil').value;
+  if (!senha) { toast('Digite a nova senha.', 'error'); return; }
+  if (senha.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
+  if (senha !== confirmar) { toast('As senhas não são iguais.', 'error'); return; }
+
+  const btn = document.getElementById('btnTrocarSenha');
+  setBtnLoading(btn, true);
+  const { error } = await sb.auth.updateUser({ password: senha });
+  setBtnLoading(btn, false, 'Salvar nova senha');
+
+  if (error) { toast('Erro ao trocar senha: ' + error.message, 'error'); return; }
+  document.getElementById('novaSenhaPerfil').value = '';
+  document.getElementById('confirmarNovaSenhaPerfil').value = '';
+  toast('Senha alterada com sucesso!', 'success');
 }
 
 async function carregarCondominios() {
